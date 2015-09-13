@@ -16,11 +16,21 @@ module.exports = {
     new webpack.optimize.UglifyJsPlugin(),
   ],
   module: {
-    loaders: [{
-      test: /\.js$/,
-      loaders: ['react-hot', 'babel'],
-      exclude: /node_modules/,
-      include: __dirname
-    }]
+    loaders: [
+      {
+        test: /\.js$/,
+        loaders: ['react-hot', 'babel'],
+        exclude: /node_modules/,
+        include: __dirname
+      },
+      {
+        test: /\.(png|jpg|jpeg)$/,
+        loader: 'url-loader?limit=8192'
+      },
+      {
+        test: /\.json$/,
+        loader: 'json-loader'
+      },
+    ]
   }
 };

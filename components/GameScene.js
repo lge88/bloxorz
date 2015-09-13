@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
-import { Scene, PerspectiveCamera } from 'react-three';
-import { Vector3 } from 'three';
-import OrbitControls from '../lib/OrbitControls';
+import { Scene } from 'react-three';
+import { Vector3, Quaternion } from 'three';
 import Lights from './Lights';
+import Camera from './Camera';
 import Box from './Box';
 import Floor from './Floor';
 import level0 from '../stages/level-0.json';
@@ -11,54 +11,45 @@ export default class BoxScene extends Component {
   static propTypes = {
     width: PropTypes.number.isRequired,
     height: PropTypes.number.isRequired,
-  };
-
-  static defaultProps = {
-    width: 500,
-    height: 500,
-  };
-
-  state = {
-    boxPosition: new Vector3(0, 0, 0)
+    lightIntensity: PropTypes.number.isRequired,
+    cameraPosition: PropTypes.object.isRequired,
+    boxPosition: PropTypes.object.isRequired,
+    boxQuaternion: PropTypes.object.isRequired,
   };
 
   render() {
+
     const { width, height } = this.props;
-    const _camera = (
-      <PerspectiveCamera
-        name = "main"
-        fov = {75}
-        aspect = {width / height}
-        near = {0.001}
-        far = {1000}
-        position = {new Vector3(0.4, -0.4, 0.5)}
-        lookAt = {new Vector3(0, 0, 0)}
-        up = {new Vector3(0, 0, 1)}
-      />
-    );
-
-    const camera = 'main';
-    const orbitControls = OrbitControls;
     const background = 0x999999;
-
-    const tiles = level0.tiles;
+    const camera = 'main';
     const sceneProps = {
       width,
       height,
       camera,
       background,
-      orbitControls,
     };
+
+    const { boxPosition, boxQuaternion } = this.props;
+    const boxProps = {
+      position: (new Vector3()).copy(boxPosition),
+      quaternion: (new Quaternion()).copy(boxQuaternion),
+    };
+
+    const tiles = level0.tiles;
+
+    const { cameraPosition } = this.props;
+
+    const { lightIntensity } = this.props;
 
     return (
       <Scene { ...sceneProps }>
-        { _camera }
-        <Box
-          position = {this.state.boxPosition}
-        />
-
+        <Box {...boxProps} />
         <Floor tiles={tiles} />
-        <Lights />
+        <Camera name = "main"
+                aspect={width / height}
+                position={cameraPosition}
+        />
+        <Lights lightIntensity={lightIntensity}/>
       </Scene>
     );
   }
