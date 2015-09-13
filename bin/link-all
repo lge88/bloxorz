@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+pushd `dirname $0` > /dev/null
+__dirname=`pwd`
+popd > /dev/null
+depends="${__dirname}/depends"
+
+$depends | cut -d' ' -f1 | xargs -I{} npm link {}

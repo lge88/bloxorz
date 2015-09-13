@@ -1,0 +1,12 @@
+{
+  "extends": "airbnb",
+  "rules": {
+    "no-console": [0],
+    "func-names": [0] ,
+    "no-var": [0],
+    "no-shadow": [0],
+    "comma-dangle": [0],
+    "no-unused-vars": [1],
+    "react/no-multi-comp": [0]
+  }
+}

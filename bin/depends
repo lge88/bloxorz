@@ -1,0 +1,29 @@
+#! /usr/bin/env node
+function readPackageJSON(pkgFile) {
+  const fs = require('fs');
+  var json;
+  try {
+    json = JSON.parse(fs.readFileSync(pkgFile));
+  } catch(err) {
+    json = null;
+  }
+  return json;
+}
+
+function outputList(pkgConfig) {
+  Object.keys(pkgConfig.dependencies).forEach(function(pkg) {
+    const version = pkgConfig.dependencies[pkg];
+    console.log(pkg + ' ' + version);
+  });
+
+  Object.keys(pkgConfig.devDependencies).forEach(function(pkg) {
+    const version = pkgConfig.devDependencies[pkg];
+    console.log(pkg + ' ' + version);
+  });
+}
+
+if (!module.parent) {
+  const pkgFile = 'package.json';
+  const pkgConfig = readPackageJSON(pkgFile);
+  if (pkgConfig) { outputList(pkgConfig); }
+}
