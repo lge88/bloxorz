@@ -5,20 +5,20 @@ import Lights from './Lights';
 import Camera from './Camera';
 import Box from './Box';
 import Floor from './Floor';
-import level0 from '../stages/level-0.json';
 
-export default class BoxScene extends Component {
+export default class GameScene extends Component {
   static propTypes = {
+    boxPosition: PropTypes.object.isRequired,
+    boxQuaternion: PropTypes.object.isRequired,
+    tiles: PropTypes.array.isRequired,
+
     width: PropTypes.number.isRequired,
     height: PropTypes.number.isRequired,
     lightIntensity: PropTypes.number.isRequired,
     cameraPosition: PropTypes.object.isRequired,
-    boxPosition: PropTypes.object.isRequired,
-    boxQuaternion: PropTypes.object.isRequired,
   };
 
   render() {
-
     const { width, height } = this.props;
     const background = 0x999999;
     const camera = 'main';
@@ -35,7 +35,7 @@ export default class BoxScene extends Component {
       quaternion: (new Quaternion()).copy(boxQuaternion),
     };
 
-    const tiles = level0.tiles;
+    const { tiles } = this.props;
 
     const { cameraPosition } = this.props;
 
