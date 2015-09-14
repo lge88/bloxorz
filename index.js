@@ -41,7 +41,7 @@ function initCannon() {
   world.gravity.set(0, 0, -10);
   world.broadphase = new NaiveBroadphase();
 
-  const material = new Material({ restitution: 0.6 });
+  const material = new Material({ friction: 1.0, restitution: 0.6 });
 
   const mass = 5;
   const boxShape = new Box(new Vec3(0.05, 0.05, 0.1));
