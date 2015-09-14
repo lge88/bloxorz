@@ -2,6 +2,7 @@ import React from 'react';
 import GameScene from './components/GameScene';
 import level0 from './stages/level-0.json';
 import wrapWithState from './lib/wrapWithState';
+import Cannon from 'cannon';
 
 var state = {
   tiles: level0.tiles,
@@ -21,7 +22,33 @@ window.gameScene = React.render(
   document.getElementById('root')
 );
 
+function emitChange() {
+  gameScene.setState(state);
+}
+
+function incrBoxZ(oldState, delta) {
+  const oldPosition = oldState.boxPosition;
+  const newPosition = { ...oldPosition };
+  newPosition.z = oldPosition.z + delta;
+  const newState = { ...state, ...{ boxPosition: newPosition } };
+  return newState;
+}
+
 window.addEventListener('resize', () => {
   const { innerWidth: width, innerHeight: height } = window;
-  gameScene.setState({ width, height });
+  const newState = { ...state, ...{ width, height } };
+  state = newState;
+  emitChange();
 });
+
+let delta = -0.01;
+
+setInterval(() => {
+  state = incrBoxZ(state, delta);
+  if (state.boxPosition.z < -0.5) {
+    delta = 0.01;
+  } else if (state.boxPosition.z > 0.5) {
+    delta = -0.01;
+  }
+  emitChange();
+}, 17);
