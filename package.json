@@ -2,7 +2,7 @@
   "name": "bloxorz",
   "version": "0.1.0",
   "dependencies": {
-    "cannon": "^0.6.2",
+    "cannon": "schteppe/cannon.js",
     "file-loader": "^0.8.4",
     "json-loader": "^0.5.2",
     "react": "^0.13.3",
