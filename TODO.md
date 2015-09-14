@@ -1,5 +1,5 @@
 # 1.0.x #
-- [ ] Cannon.js integration.
+- [x] Cannon.js integration.
 - [ ] Redux refactor.
 - [ ] Game logic.
 - [ ] Keyboard controls.
