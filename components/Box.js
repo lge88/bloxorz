@@ -6,8 +6,8 @@ import WoodImage from '../images/wood.jpeg';
 
 const texture = ImageUtils.loadTexture(WoodImage);
 const geometry = new BoxGeometry(0.1, 0.1, 0.2);
-const transZMatrix = (new Matrix4()).makeTranslation(0, 0, 0.1);
-geometry.applyMatrix(transZMatrix);
+/* const transZMatrix = (new Matrix4()).makeTranslation(0, 0, 0.1);
+   geometry.applyMatrix(transZMatrix); */
 
 const material = new MeshPhongMaterial({
   map: texture,

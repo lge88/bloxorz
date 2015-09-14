@@ -2,11 +2,12 @@ import React from 'react';
 import GameScene from './components/GameScene';
 import level0 from './stages/level-0.json';
 import wrapWithState from './lib/wrapWithState';
-import Cannon from 'cannon';
+import { World, Box, Body, Vec3 } from 'cannon';
+import { Plane, NaiveBroadphase, Material } from 'cannon';
 
 var state = {
   tiles: level0.tiles,
-  boxPosition: { x: 0, y: 0, z: 0.3 },
+  boxPosition: { x: 0, y: 0, z: 1.0 },
   boxQuaternion: { x: 0, y: 0, z: 0, w: 1 },
 
   width: window.innerWidth,
@@ -26,14 +27,6 @@ function emitChange() {
   gameScene.setState(state);
 }
 
-function incrBoxZ(oldState, delta) {
-  const oldPosition = oldState.boxPosition;
-  const newPosition = { ...oldPosition };
-  newPosition.z = oldPosition.z + delta;
-  const newState = { ...state, ...{ boxPosition: newPosition } };
-  return newState;
-}
-
 window.addEventListener('resize', () => {
   const { innerWidth: width, innerHeight: height } = window;
   const newState = { ...state, ...{ width, height } };
@@ -41,14 +34,43 @@ window.addEventListener('resize', () => {
   emitChange();
 });
 
-let delta = -0.01;
+function initCannon() {
+  const world = new World();
+  world.quatNormalizeSkip = 0;
+  world.quatNormalizeFast = false;
+  world.gravity.set(0, 0, -10);
+  world.broadphase = new NaiveBroadphase();
 
-setInterval(() => {
-  state = incrBoxZ(state, delta);
-  if (state.boxPosition.z < -0.5) {
-    delta = 0.01;
-  } else if (state.boxPosition.z > 0.5) {
-    delta = -0.01;
-  }
+  const material = new Material({ restitution: 0.6 });
+
+  const mass = 5;
+  const boxShape = new Box(new Vec3(0.05, 0.05, 0.1));
+  const boxBody = new Body({ mass: mass });
+  boxBody.addShape(boxShape);
+  boxBody.position.set(0, 0, state.boxPosition.z);
+
+  boxBody.material = material;
+  boxBody.linearDamping = 0.5;
+
+  const groundShape = new Plane();
+  const groundBody = new Body({ mass: 0 });
+  groundBody.addShape(groundShape);
+  groundBody.material = material;
+
+  world.add(boxBody);
+  world.add(groundBody);
+
+  return { world, boxBody, groundBody };
+}
+
+const { world, boxBody } = initCannon();
+
+const dt = 1 / 60;
+const updateWorld = () => {
+  world.step(dt);
+  Object.assign(state.boxPosition, boxBody.position);
+  Object.assign(state.boxQuaternion, boxBody.quaternion);
   emitChange();
-}, 17);
+  requestAnimationFrame(updateWorld);
+};
+requestAnimationFrame(updateWorld);
