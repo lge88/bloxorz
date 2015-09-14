@@ -15,6 +15,8 @@ module.exports = {
     new webpack.optimize.OccurenceOrderPlugin(),
     new webpack.optimize.UglifyJsPlugin(),
   ],
+  resolve: { fallback: path.join(__dirname, 'node_modules') },
+  resolveLoader: { fallback: path.join(__dirname, 'node_modules') },
   module: {
     loaders: [
       {
