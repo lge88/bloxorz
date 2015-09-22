@@ -3,7 +3,7 @@ import GameScene from './components/GameScene';
 import level0 from './stages/level-0.json';
 import wrapWithState from './lib/wrapWithState';
 import loop from './lib/loop';
-import { createWorld } from './store/world';
+import { createWorld } from './world';
 
 var state = {
   tiles: level0.tiles,
@@ -46,19 +46,23 @@ const handle = loop.add(updateWorld);
 
 window.addEventListener('keydown', function(event) {
   switch (event.keyCode) {
-  case 37: // Left
+  case 37:
+    console.log('left -> roll backward');
     world.rollBoxBackward();
     break;
 
-  case 38: // Up
+  case 38:
+    console.log('up -> roll left');
     world.rollBoxLeft();
     break;
 
-  case 39: // Right
+  case 39:
+    console.log('right -> roll forward');
     world.rollBoxForward();
     break;
 
-  case 40: // Down
+  case 40:
+    console.log('down -> roll right');
     world.rollBoxRight();
     break;
 
