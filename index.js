@@ -26,7 +26,7 @@ var state = {
   },
 
   camera: {
-    position: { x: 0.2, y: -0.5, z: 0.5 },
+    position: { x: 2, y: -5, z: 5 },
   },
 
   width: window.innerWidth,

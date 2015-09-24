@@ -2,6 +2,11 @@ import { World, NaiveBroadphase } from 'cannon';
 import { createBox } from './box';
 import { createFloor } from './floor';
 
+const STATE = {
+  INIT: 'INIT',
+  PLAYING: 'PLAYING',
+};
+
 export function createWorld({
   box: boxState,
   floor: floorState,
@@ -16,10 +21,16 @@ export function createWorld({
   const floor = createFloor(floorState);
 
   world.addBody(box.body);
+  world.addBody(floor.plane);
 
-  floor.bricks.forEach((brick) => {
-    world.addBody(brick);
-  });
+  let state = STATE.INIT;
+
+  function setupBricks() {
+    world.removeBody(floor.plane);
+    floor.bricks.forEach((brick) => {
+      world.addBody(brick);
+    });
+  }
 
   const getBoxBodyState = () => {
     return {
@@ -36,7 +47,18 @@ export function createWorld({
   const dt = 1 / 60;
   const update = () => {
     world.step(dt);
-    box.postUpdate();
+
+    if (box.isSteady() && box.isAwake()) {
+      const config = box.getSteadyConfig();
+      console.log('config:', config);
+      box.setSteadyConfig(config);
+      box.sleep();
+
+      if (state === STATE.INIT) {
+        setupBricks();
+        state = STATE.PLAYING;
+      }
+    }
   };
 
   return {
