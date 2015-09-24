@@ -3,25 +3,31 @@ import { Object3D } from 'react-three';
 import { Vector3 } from 'three';
 import Brick from './brick';
 
+const SHRINK = 0.98;
+
 export default class Floor extends Component {
   static propTypes = {
-    tiles: PropTypes.array.isRequired
+    width: PropTypes.number.isRequired,
+    thickness: PropTypes.number.isRequired,
+    tiles: PropTypes.array.isRequired,
   };
 
   render() {
-    const tiles = this.props.tiles.map((tile, i) => {
+    const { width, thickness, tiles } = this.props;
+    const _tiles = tiles.map((tile, i) => {
       const { x, y, type } = tile;
-      const pos = new Vector3(0.1 * x, 0.1 * y, 0);
+      const pos = new Vector3(width * x, width * y, -0.5 * thickness);
+      const brickWidth = SHRINK * width;
       if (type === 'Normal') {
-        return <Brick key={i} position={pos} />;
+        return <Brick key={i} width={brickWidth} thickness={thickness} position={pos} />;
       }
 
-      return <Brick key={i} position={pos} />;
+      return <Brick key={i} width={brickWidth} thickness={thickness} position={pos} />;
     });
 
     return (
       <Object3D>
-        { tiles }
+        { _tiles }
       </Object3D>
 
     );

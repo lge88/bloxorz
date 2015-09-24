@@ -6,14 +6,31 @@ import loop from './lib/loop';
 import { createWorld } from './world';
 
 var state = {
-  tiles: level0.tiles,
-  boxPosition: { x: 0, y: 0, z: 1 },
-  boxQuaternion: { x: 0, y: 0, z: 0, w: 1 },
+  box: {
+    dimensions: {
+      width: 0.1,
+      numStories: 2,
+    },
+    position: { x: 0, y: 0, z: 1 },
+    quaternion: { x: 0, y: 0, z: 0, w: 1 },
+  },
+
+  floor: {
+    thickness: 0.01,
+    width: 0.1,
+    tiles: level0.tiles,
+  },
+
+  lights: {
+    intensity: 1.0,
+  },
+
+  camera: {
+    position: { x: 0.2, y: -0.5, z: 0.5 },
+  },
 
   width: window.innerWidth,
   height: window.innerHeight,
-  lightIntensity: 1.0,
-  cameraPosition: { x: 0.2, y: -0.5, z: 0.5 },
 };
 
 const GameSceneWithState = wrapWithState(state, GameScene);
@@ -34,12 +51,16 @@ window.addEventListener('resize', () => {
   emitChange();
 });
 
-const world = createWorld({});
+const world = createWorld({
+  box: state.box,
+  floor: state.floor,
+});
+
 const updateWorld = () => {
   world.update();
   const { position, quaternion } = world.getBoxBodyState();
-  Object.assign(state.boxPosition, position);
-  Object.assign(state.boxQuaternion, quaternion);
+  Object.assign(state.box.position, position);
+  Object.assign(state.box.quaternion, quaternion);
   emitChange();
 };
 const handle = loop.add(updateWorld);

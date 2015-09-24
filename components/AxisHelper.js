@@ -58,7 +58,7 @@ export default class AxisHelper extends Component {
   render() {
     return (
       <Object3D {...this.props}>
-        { axes.map((a) => <Line {...a} />) }
+        { axes.map((a, i) => <Line key={i} {...a} />) }
       </Object3D>
     );
   }

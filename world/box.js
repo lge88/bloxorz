@@ -2,11 +2,15 @@ import { Box, Body, Vec3 } from 'cannon';
 import { Material } from 'cannon';
 const { abs, round } = Math;
 
-export function createBox(position, dimensions) {
-  const mass = 5;
-  const material = new Material({ friction: 1.0, restitution: 0.6 });
-  const { width, length, height } = dimensions;
-  const shape = new Box(new Vec3(0.5 * width, 0.5 * length, 0.5 * height));
+const mass = 5;
+const material = new Material({ friction: 1.0, restitution: 0.8 });
+
+export function createBox({
+  position,
+  dimensions
+}) {
+  const { width, numStories } = dimensions;
+  const shape = new Box(new Vec3(0.5 * width, 0.5 * width, 0.5 * width * numStories ));
   const body = new Body({ mass: mass });
   body.addShape(shape);
   body.position.copy(position);

@@ -8,14 +8,44 @@ import Floor from './Floor';
 
 export default class GameScene extends Component {
   static propTypes = {
-    boxPosition: PropTypes.object.isRequired,
-    boxQuaternion: PropTypes.object.isRequired,
-    tiles: PropTypes.array.isRequired,
+    box: PropTypes.shape({
+      dimensions: PropTypes.shape({
+        width: PropTypes.number.isRequired,
+        numStories: PropTypes.number.isRequired,
+      }),
+      position: PropTypes.shape({
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        z: PropTypes.number.isRequired,
+      }),
+      quaternion: PropTypes.shape({
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        z: PropTypes.number.isRequired,
+        w: PropTypes.number.isRequired,
+      }),
+    }),
+
+    floor: PropTypes.shape({
+      width: PropTypes.number.isRequired,
+      thickness: PropTypes.number.isRequired,
+      tiles: PropTypes.array.isRequired,
+    }),
+
+    lights: PropTypes.shape({
+      intensity: PropTypes.number.isRequired,
+    }),
+
+    camera: PropTypes.shape({
+      position: PropTypes.shape({
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        z: PropTypes.number.isRequired,
+      }),
+    }),
 
     width: PropTypes.number.isRequired,
     height: PropTypes.number.isRequired,
-    lightIntensity: PropTypes.number.isRequired,
-    cameraPosition: PropTypes.object.isRequired,
   };
 
   render() {
@@ -29,22 +59,23 @@ export default class GameScene extends Component {
       background,
     };
 
-    const { boxPosition, boxQuaternion } = this.props;
+    const { dimensions, position: boxPosition, quaternion: boxQuaternion } = this.props.box;
     const boxProps = {
       position: (new Vector3()).copy(boxPosition),
       quaternion: (new Quaternion()).copy(boxQuaternion),
+      dimensions,
     };
 
-    const { tiles } = this.props;
+    const floorProps = this.props.floor;
 
-    const { cameraPosition } = this.props;
+    const { position: cameraPosition } = this.props.camera;
 
-    const { lightIntensity } = this.props;
+    const { intensity: lightIntensity } = this.props.lights;
 
     return (
       <Scene { ...sceneProps }>
         <Box {...boxProps} />
-        <Floor tiles={tiles} />
+        <Floor {...floorProps} />
         <Camera name = "main"
                 aspect={width / height}
                 position={cameraPosition}

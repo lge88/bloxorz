@@ -3,9 +3,8 @@ import { createBox } from './box';
 import { createFloor } from './floor';
 
 export function createWorld({
-  initialBoxPosition = { x: 0, y: 0, z: 1.0 },
-  boxDimensions = { width: 0.1, length: 0.1, height: 0.2 },
-  tiles = [],
+  box: boxState,
+  floor: floorState,
 }) {
   const world = new World();
   world.quatNormalizeSkip = 0;
@@ -13,11 +12,14 @@ export function createWorld({
   world.gravity.set(0, 0, -10);
   world.broadphase = new NaiveBroadphase();
 
-  const box = createBox(initialBoxPosition, boxDimensions);
-  const floor = createFloor(tiles);
+  const box = createBox(boxState);
+  const floor = createFloor(floorState);
 
-  world.add(box.body);
-  world.add(floor);
+  world.addBody(box.body);
+
+  floor.bricks.forEach((brick) => {
+    world.addBody(brick);
+  });
 
   const getBoxBodyState = () => {
     return {
