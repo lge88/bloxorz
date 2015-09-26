@@ -1,8 +1,9 @@
-import { Body, Plane, Material } from 'cannon';
+import { Body, Plane } from 'cannon';
 import { Box, Vec3 } from 'cannon';
+import { brick as material } from './materials';
 
-const SHRINK = 0.98;
-const material = new Material({ friction: 1.0, restitution: 0.6 });
+const SHRINK = 0.95;
+// const material = new Material({ friction: 1.0, restitution: 0.6 });
 
 export function createFloor({
   thickness,

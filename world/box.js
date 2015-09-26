@@ -1,18 +1,18 @@
-import { Box, Body, Vec3 } from 'cannon';
-import { Material } from 'cannon';
+import { Box, Body, Vec3, Quaternion, HingeConstraint } from 'cannon';
 import { Vector3 } from 'three';
-const { abs, round } = Math;
+const { abs, round, PI } = Math;
+import { box as material } from './materials';
+import { FORWARD, LEFT, UP } from '../lib/roll';
+import { BACKWARD, RIGHT, DOWN, createOrientation } from '../lib/roll';
+import { roll } from '../lib/roll';
 
 const mass = 5;
-const material = new Material({ friction: 1.0, restitution: 0.8 });
-const STEADY_THRESHOLD = 1 / 1000;
-const DIRECTIONS = {
-  up: new Vector3(0, 0, 1),
-  down: new Vector3(0, 0, -1),
-  forward: new Vector3(1, 0, 0),
-  backward: new Vector3(-1, 0, 0),
-  left: new Vector3(0, 1, 0),
-  right: new Vector3(0, -1, 0),
+const VELOCITY_THRESHOLD = 1 / 100;
+const ANGULAR_VELOCITY_THRESHOLD = 1 / 100;
+const FORCE_MAGNITUDES = {
+  SMALL: 20,
+  MEDIUM: 30,
+  LARGE: 40,
 };
 
 export function createBox({
@@ -21,169 +21,228 @@ export function createBox({
 }) {
   const { width, numStories } = dimensions;
   const height = width * numStories;
-  const shape = new Box(new Vec3(0.5 * width, 0.5 * width, 0.5 * height ));
-  const body = new Body({ mass: mass });
-  body.addShape(shape);
-  body.position.copy(position);
-  body.material = material;
-  body.linearDamping = 0.5;
+  const [ hfW, hfH ] = [ 0.5 * width, 0.5 * height ];
 
-  // Returns enum('up', 'down', 'forward', 'backward', 'left', 'right')
-  function getLocalAxisDirection(
-    // enum('x', 'y', 'z')
-    localAxis
-  ) {
-    let localVec;
-    if (localAxis === 'x') {
-      localVec = new Vector3(1, 0, 0);
-    } else if (localAxis === 'y') {
-      localVec = new Vector3(0, 1, 0);
-    } else if (localAxis === 'z') {
-      localVec = new Vector3(0, 0, 1);
-    } else {
-      throw new Error('localAxis is not one of "x", "y", "z"');
-    }
-
-    const worldVec = body.vectorToWorldFrame(localVec);
-    const { direction } = findClosestDirection(worldVec, DIRECTIONS);
-    return direction;
-  }
-
-  // { direction, angle }
-  function findClosestDirection(vec, directions) {
-    let minAngle = Infinity;
-    let closestDirection = null;
-    const v = (new Vector3()).copy(vec);
-    Object.keys(directions).forEach((dir) => {
-      const dirVec = directions[dir];
-      const angle = v.angleTo(dirVec);
-      if (angle < minAngle) {
-        minAngle = angle;
-        closestDirection = dir;
-      }
-      // console.log(dir, 'anlgle', angle, 'min', minAngle, 'closest', closestDirection);
-    });
-
-    return {
-      direction: closestDirection,
-      vector: directions[closestDirection].clone(),
-      angle: minAngle
-    };
-  }
-
-  const RollDirections = {
-    forward: new Vec3(1, 0, 0),
-    backward: new Vec3(-1, 0, 0),
-    left: new Vec3(0, 1, 0),
-    right: new Vec3(0, -1, 0),
+  let steadyState = {
+    orientation: createOrientation(FORWARD, LEFT, UP),
+    location: { x: 0, y: 0 },
   };
 
-  // Returns the force and point in local frame could make box roll.
-  // rollDirection: {'left','right','forward','backward'}
-  function getRollingForceAndPoint(rollDirection) {
-    const xAxisState = getLocalAxisDirection('x');
-    const yAxisState = getLocalAxisDirection('y');
-    const zAxisState = getLocalAxisDirection('z');
-    const [ hfW, hfH ] = [ 0.5 * width, 0.5 * height];
+  const body = createBody();
 
-    // Returns the center of current top face.
-    function getTopCenter() {
-      let topCenter;
-      if (xAxisState === 'up') {
-        topCenter = new Vec3(hfW, 0, 0);
-      } else if (xAxisState === 'down') {
-        topCenter = new Vec3(-hfW, 0, 0);
-      } else if (yAxisState === 'up') {
-        topCenter = new Vec3(0, hfW, 0);
-      } else if (yAxisState === 'down') {
-        topCenter = new Vec3(0, -hfW, 0);
-      } else if (zAxisState === 'up') {
-        topCenter = new Vec3(0, 0, hfH);
-      } else if (zAxisState === 'down') {
-        topCenter = new Vec3(0, 0, -hfH);
+  function createBody() {
+    const shape = new Box(new Vec3(0.5 * width, 0.5 * width, 0.5 * height ));
+    const body = new Body({ mass: mass });
+    body.addShape(shape);
+    body.position.copy(position);
+    body.material = material;
+    body.linearDamping = 0.5;
+    return body;
+  }
+
+  function getForceMagnitude(orientation, rollingDir) {
+    const z = orientation[UP];
+    if (z === UP || z === DOWN) {
+      return FORCE_MAGNITUDES.SMALL;
+    } else if (z === FORWARD || z === BACKWARD) {
+      if (rollingDir === 'FORWARD' || rollingDir === 'BACKWARD') {
+        return FORCE_MAGNITUDES.LARGE;
+      } else if (rollingDir === 'LEFT' || rollingDir === 'RIGHT') {
+        return FORCE_MAGNITUDES.MEDIUM;
+      }
+    } else if (z === LEFT || z === RIGHT) {
+      if (rollingDir === 'FORWARD' || rollingDir === 'BACKWARD') {
+        return FORCE_MAGNITUDES.MEDIUM;
+      } else if (rollingDir === 'LEFT' || rollingDir === 'RIGHT') {
+        return FORCE_MAGNITUDES.LARGE;
+      }
+    }
+
+    throw new Error('Should not reach here.');
+  }
+
+  // { axis, pivot, point, force, nextSteadyState }
+  function getRollingConfiguration(rollingDirection) {
+    const orientation = steadyState.orientation;
+
+    /* debugger; */
+    let {
+      axis,
+      pivot,
+      force,
+      point,
+      newOrientation,
+    } = roll(rollingDirection, orientation);
+
+    const axisA = new Vec3(...axis);
+    axis = body.vectorToWorldFrame(axis);
+
+    const dims = [ width, width, height ];
+    pivot = pivot.map((val, i) => val * dims[i]);
+    pivot = new Vec3(...pivot);
+    const pivotA = pivot;
+
+    pivot = body.pointToWorldFrame(pivot);
+
+    const forceMag = getForceMagnitude(orientation, rollingDirection);
+    force = force.map((f) => f * forceMag);
+    force = new Vec3(...force);
+
+    point = point.map((val, i) => val * dims[i]);
+    point = new Vec3(...point);
+
+    const staticBody = new Body({ mass: 0 });
+    staticBody.addShape(new Box(new Vec3(hfW, hfW, hfW)));
+    staticBody.position.x = body.position.x;
+    staticBody.position.y = body.position.y;
+    staticBody.position.z = -hfW;
+
+    const axisB = staticBody.vectorToLocalFrame(axis);
+    const pivotB = staticBody.pointToLocalFrame(pivot);
+
+    const hingeConstraint = new HingeConstraint(body, staticBody, {
+      pivotA,
+      axisA,
+      pivotB,
+      axisB,
+    });
+
+    const nextSteadyState = {
+      orientation: newOrientation,
+      location: getNextLocation(rollingDirection),
+    };
+
+    return { staticBody, hingeConstraint, point, force, nextSteadyState };
+  }
+
+  function getNextLocation(rollingDirection) {
+    let { x, y } = steadyState.location;
+    const [ xAxisState, yAxisState, zAxisState ] = getLocalAxisState(steadyState.orientation);
+    const smallOffset = 1;
+    const largeOffset = 0.5 * (numStories + 1);
+
+    switch (rollingDirection) {
+    case 'FORWARD':
+      if (zAxisState === LEFT || zAxisState === RIGHT) {
+        x += smallOffset;
       } else {
-        console.assert(false, 'should never hit here!');
+        x += largeOffset;
       }
-      return topCenter;
-    }
-
-    function getNormalizedForce() {
-      const globalVec = RollDirections[rollDirection];
-      const localVec = body.vectorToLocalFrame(globalVec);
-      const { vector } = findClosestDirection(localVec, DIRECTIONS);
-      return vector;
-    }
-
-    function getForceMag(point, force) {
-      if (abs(point.z) === hfH) {
-        return 3.5;
+      break;
+    case 'BACKWARD':
+      if (zAxisState === LEFT || zAxisState === RIGHT) {
+        x -= smallOffset;
+      } else {
+        x -= largeOffset;
       }
-
-      if (abs(force.z) === 0) {
-        return 4.0;
+      break;
+    case 'LEFT':
+      if (zAxisState === FORWARD || zAxisState === BACKWARD) {
+        y += smallOffset;
+      } else {
+        y += largeOffset;
       }
-      return 8.0;
+      break;
+    case 'RIGHT':
+      if (zAxisState === FORWARD || zAxisState === BACKWARD) {
+        y -= smallOffset;
+      } else {
+        y -= largeOffset;
+      }
+      break;
+    default:
     }
-
-    const point = getTopCenter();
-    const force = getNormalizedForce();
-    const mag = getForceMag(point, force);
-
-    force.multiplyScalar(mag);
-    return { force, point };
+    return { x, y };
   }
 
-  function roll(direction) {
-    if (!(direction in RollDirections)) return;
-
-    const { force, point } = getRollingForceAndPoint(direction);
-    console.log('force', force, 'point', point);
-
-    body.wakeUp();
-    body.applyLocalImpulse(force, point);
+  function getLocalAxisState(orientation) {
+    const result = Array(6);
+    orientation.forEach((el, i) => {
+      result[el] = i;
+    });
+    return result;
   }
 
-  // { zAxisState, yAxisState, xi, yi }
-  function getSteadyConfig() {
-    const zAxisState = getLocalAxisDirection('z');
-    const yAxisState = getLocalAxisDirection('y');
-    const { x, y } = body.position;
-    const xi = round(x / width * 2) / 2;
-    const yi = round(y / width * 2) / 2;
-    return { zAxisState, yAxisState, xi, yi };
+  function setSteadyState(state) {
+    steadyState = state;
+
+    const { position, quaternion } = getBodyStateFromSteadyState(state);
+    body.position.copy(position);
+    body.quaternion.copy(quaternion);
+
+    body.velocity.setZero();
+    body.angularVelocity.setZero();
+    /* body.force.setZero(); */
+    /* body.torque.setZero(); */
   }
 
-  function setSteadyConfig(config) {
-    const { zAxisState, yAxisState, xi, yi } = config;
+  // Returns { position, quaternion }
+  function getBodyStateFromSteadyState({
+    orientation,
+    location,
+  }) {
+    const [ xAxisState, yAxisState, zAxisState ] = getLocalAxisState(orientation);
+    const { x: xi, y: yi } = location;
     const x = xi * width;
     const y = yi * width;
     let z;
-    if (zAxisState === 'up' || zAxisState === 'down') {
+    if (zAxisState === UP || zAxisState === DOWN) {
       z = 0.5 * height;
     } else {
       z = 0.5 * width;
     }
-    body.position.set(x, y, z);
+    const position = new Vec3(x, y, z);
 
-    // figure correct positions
-    // let { x, y, z } = body.position;
-    // const xAxisState = getLocalAxisDirection('x');
-    // const yAxisState = getLocalAxisDirection('y');
-    // const zAxisState = getLocalAxisDirection('z');
-
-    // if (zAxisState === 'up' || zAxisState === 'down') {
-
-    // }
-
-    // x = snap(x, width);
-    // y = snap(y, length);
-    // z = snap(z, height);
-
-    // figure correct quaternion
+    const quaternion = new Quaternion();
+    let euler = [0, 0, 0, 'XYZ'];
+    if (zAxisState === UP) {
+      if (xAxisState === FORWARD) euler = [ 0, 0, 0, 'XYZ' ];
+      else if (xAxisState === LEFT) euler = [ 0, 0, PI / 2, 'XYZ' ];
+      else if (xAxisState === BACKWARD) euler = [ 0, 0, PI, 'XYZ' ];
+      else if (xAxisState === RIGHT) euler = [ 0, 0, -PI / 2, 'XYZ' ];
+    } else if (zAxisState === DOWN) {
+      if (xAxisState === FORWARD) euler = [ PI, 0, 0, 'XYZ' ];
+      else if (xAxisState === LEFT) euler = [ PI, 0, -PI / 2, 'XYZ' ];
+      else if (xAxisState === BACKWARD) euler = [ PI, 0, PI, 'XYZ' ];
+      else if (xAxisState === RIGHT) euler = [ PI, 0, PI / 2, 'XYZ' ];
+    } else if (yAxisState === UP) {
+      if (xAxisState === FORWARD) euler = [ PI / 2, 0, 0, 'XYZ' ];
+      else if (xAxisState === LEFT) euler = [ PI / 2, PI / 2, 0, 'XYZ' ];
+      else if (xAxisState === BACKWARD) euler = [ PI / 2, PI, 0, 'XYZ' ];
+      else if (xAxisState === RIGHT) euler = [ PI / 2, -PI / 2, 0, 'XYZ' ];
+    } else if (yAxisState === DOWN) {
+      if (xAxisState === FORWARD) euler = [ -PI / 2, 0, 0, 'XYZ' ];
+      else if (xAxisState === LEFT) euler = [ -PI / 2, -PI / 2, 0, 'XYZ' ];
+      else if (xAxisState === BACKWARD) euler = [ -PI / 2, PI, 0, 'XYZ' ];
+      else if (xAxisState === RIGHT) euler = [ -PI / 2, PI / 2, 0, 'XYZ' ];
+    } else if (xAxisState === UP) {
+      if (yAxisState === FORWARD) euler = [ -PI / 2, -PI / 2, 0, 'YXZ' ];
+      else if (yAxisState === LEFT) euler = [ 0, -PI / 2, 0, 'YXZ' ];
+      else if (yAxisState === BACKWARD) euler = [ PI / 2, -PI / 2, 0, 'YXZ' ];
+      else if (yAxisState === RIGHT) euler = [ PI, -PI / 2, 0, 'YXZ' ];
+    } else if (xAxisState === DOWN) {
+      if (yAxisState === FORWARD) euler = [ PI / 2, PI / 2, 0, 'YXZ' ];
+      else if (yAxisState === LEFT) euler = [ 0, PI / 2, 0, 'YXZ' ];
+      else if (yAxisState === BACKWARD) euler = [ -PI / 2, PI / 2, 0, 'YXZ' ];
+      else if (yAxisState === RIGHT) euler = [ PI, PI / 2, 0, 'YXZ' ];
+    }
+    quaternion.setFromEuler(...euler);
+    return { position, quaternion };
   }
 
-  function isSteady() {
-    return body.velocity.length() < STEADY_THRESHOLD;
+  function isStatic() {
+    return body.velocity.length() < VELOCITY_THRESHOLD &&
+      body.angularVelocity.length() < ANGULAR_VELOCITY_THRESHOLD;
+  }
+
+  function isOnTheGround() {
+    const { orientation } = steadyState;
+    const [ xAxisState, yAxisState, zAxisState ] = getLocalAxisState(orientation);
+    const tol = 1e-3;
+    if (zAxisState === UP || zAxisState === DOWN) {
+      return abs(body.position.z - 0.5 * height) < tol;
+    }
+    return abs(body.position.z - 0.5 * width) < tol;
   }
 
   function isAwake() {
@@ -194,26 +253,19 @@ export function createBox({
     body.sleep();
   }
 
+  function getSteadyState() {
+    return steadyState;
+  }
+
   return {
     body,
     roll,
-    isSteady,
+    isStatic,
+    isOnTheGround,
     isAwake,
     sleep,
-    getSteadyConfig,
-    setSteadyConfig,
+    getRollingConfiguration,
+    setSteadyState,
+    getSteadyState,
   };
-}
-
-function snap(val, gridSpacing) {
-  return round(val / gridSpacing) * gridSpacing;
-}
-
-
-function getForceMagnitude(angularAcceleration, dimensions, topPoint) {
-  return 200;
-  // TODO: figure I from dimensions and oriantation.
-  /* const I = 100;
-     const moment = angularAcceleration * I;
-     return moment / topPoint.z; */
 }
