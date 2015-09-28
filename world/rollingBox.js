@@ -1,30 +1,23 @@
 import { Body, Quaternion, Vec3 } from 'cannon';
-import { createCube } from '../lib/roll';
+import { createDice } from './dice';
 const { PI } = Math;
 
 export function createRollingBox({
   width,
   length,
   height,
-  initialLocation = { x: [ 0, 0, 0 ], y: [ 0, 0, 0 ] },
-  initialOrientation = { x: 'FORWARD', y: 'LEFT' },
+  location = { x: [ 0, 0, 0 ], y: [ 0, 0, 0 ] },
+  orientation = { x: 'FORWARD', y: 'LEFT' },
 }) {
   const [ hfW, hfL, hfH ] = [ 0.5 * width, 0.5 * length, 0.5 * height ];
-  const cube = createCube({ initialOrientation });
-  const location = {
-    x: [ ...initialLocation.x ],
-    y: [ ...initialLocation.y ],
-  };
+  const dice = createDice({ orientation });
+
   const body = new Body();
   initPosition(body.position);
   initQuaternion(body.quaternion);
 
-  function getPosition() {
-    return body.position;
-  }
-
   function initPosition(pos) {
-    const local = cube.globalToLocal('UP');
+    const local = dice.globalToLocal('UP');
     let z;
     if (local === 'FORWARD' || local === 'BACKWARD') {
       z = hfW;
@@ -39,15 +32,13 @@ export function createRollingBox({
     const [ y1, y2, y3 ] = location.y;
     const x = hfW * x1 + hfL * x2 + hfH * x3;
     const y = hfW * y1 + hfL * y2 + hfH * y3;
-    pos.x = x;
-    pos.y = y;
-    pos.z = z;
+    Object.assign(pos, { x, y, z});
   }
 
   function initQuaternion(q) {
-    const localX = cube.localToGlobal('FORWARD');
-    const localY = cube.localToGlobal('LEFT');
-    const localZ = cube.localToGlobal('UP');
+    const localX = dice.localToGlobal('FORWARD');
+    const localY = dice.localToGlobal('LEFT');
+    const localZ = dice.localToGlobal('UP');
     let euler = [0, 0, 0, 'XYZ'];
     if (localZ === 'UP') {
       if (localX === 'FORWARD') euler = [ 0, 0, 0, 'XYZ' ];
@@ -83,6 +74,10 @@ export function createRollingBox({
     q.setFromEuler(...euler);
   }
 
+  function getPosition() {
+    return body.position;
+  }
+
   function getQuaternion() {
     return body.quaternion;
   }
@@ -96,15 +91,15 @@ export function createRollingBox({
 
   function getNextLocation(direction) {
     let xOrY;
-    let step;
+    let offset;
     if (direction === 'FORWARD') {
-      [ xOrY, step ] = [ 'x', 1 ];
+      [ xOrY, offset ] = [ 'x', 1 ];
     } else if (direction === 'BACKWARD') {
-      [ xOrY, step ] = [ 'x', -1 ];
+      [ xOrY, offset ] = [ 'x', -1 ];
     } else if (direction === 'LEFT') {
-      [ xOrY, step ] = [ 'y', 1 ];
+      [ xOrY, offset ] = [ 'y', 1 ];
     } else if (direction === 'RIGHT') {
-      [ xOrY, step ] = [ 'y', -1 ];
+      [ xOrY, offset ] = [ 'y', -1 ];
     } else {
       throw new Error(`Invalid direction ${direction}.`);
     }
@@ -112,7 +107,7 @@ export function createRollingBox({
     let nextLocation = getLocation();
 
     ['UP', direction].forEach((dir) => {
-      let local = cube.globalToLocal(dir);
+      let local = dice.globalToLocal(dir);
       let dim;
       if (local === 'FORWARD' || local === 'BACKWARD') {
         dim = 0;
@@ -123,7 +118,7 @@ export function createRollingBox({
       } else {
         throw new Error(`Invalid local orientation. ${local}`);
       }
-      nextLocation[xOrY][dim] += step;
+      nextLocation[xOrY][dim] += offset;
     });
 
     return nextLocation;
@@ -132,35 +127,31 @@ export function createRollingBox({
   function rolled(direction) {
     const nextLocation = getNextLocation(direction);
 
-    const { newCube } = cube.roll(direction);
+    const { newDice } = dice.roll(direction);
     const nextOrientation = {
-      x: newCube.localToGlobal('FORWARD'),
-      y: newCube.localToGlobal('LEFT'),
+      x: newDice.localToGlobal('FORWARD'),
+      y: newDice.localToGlobal('LEFT'),
     };
 
     return createRollingBox({
       width,
       length,
       height,
-      initialLocation: nextLocation,
-      initialOrientation: nextOrientation,
+      location: nextLocation,
+      orientation: nextOrientation,
     });
   }
 
-  const degreeToRad = (() => {
-    const factor = PI / 180;
-    return (deg) => {
-      return deg * factor;
-    };
-  })();
-
+  // This method could be optimized by caching.
+  // Returns the interpolated state of rolling.
   // direction in {FORWARD,BACKWARD,LEFT,RIGHT}
-  // degree in [0, 90]
+  // t in [0, 1]
   // returns { position, quaternion }
-  // rolled(direction).getSteadyState() === roll(direction, 90)
-  function roll(direction, degree) {
+  // getSteadyState() === roll(direction, 0)
+  // rolled(direction).getSteadyState() === roll(direction, 1)
+  function roll(direction, t) {
     const dims = [ width, length, height ];
-    let { axis, pivot } = cube.roll(direction);
+    let { axis, pivot } = dice.roll(direction);
 
     pivot = pivot.map((val, i) => val * dims[i]);
     pivot = new Vec3(...pivot);
@@ -169,7 +160,7 @@ export function createRollingBox({
     axis = new Vec3(...axis);
     axis = body.vectorToWorldFrame(axis);
 
-    const angle = degreeToRad(degree);
+    const angle = 0.5 * PI * t;
     const q = new Quaternion();
     q.setFromAxisAngle(axis, angle);
     const quaternion = q.mult(getQuaternion());

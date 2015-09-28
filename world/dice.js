@@ -1,4 +1,4 @@
-// The math model for rolling a unit cube.
+// Implements the logic of rolling a unit cube.
 
 // x+ direction
 const FORWARD = 0;
@@ -93,14 +93,12 @@ export const getEdgeCenter = (axis1, axis2) => {
   return EDGE_CENTERS[edgeKey];
 };
 
-// Cube is an object represents the stable orientation of box
-// on the flat ground after any number of times of rolling.
-// initialOrientation is defined by the orientation of local x axis and
-// local y axis.
-export const createCube = ({
-  initialOrientation = { x: 'FORWARD', y: 'LEFT' },
+// orientation is uniquely defined by the orientation of local x axis and
+// local y axis. There are 6 x 4 = 24 unique orientations for a dice.
+export const createDice = ({
+  orientation = { x: 'FORWARD', y: 'LEFT' },
 }) => {
-  let { x, y } = initialOrientation;
+  let { x, y } = orientation;
   x = ORIENTATIONS_BY_NAME[x].value;
   y = ORIENTATIONS_BY_NAME[y].value;
 
@@ -218,14 +216,14 @@ export const createCube = ({
       newLocalToGlobalLut[local] = global;
     });
 
-    const newCube = createCube({
-      initialOrientation: {
+    const newDice = createDice({
+      orientation: {
         x: ORIENTATIONS[newLocalToGlobalLut[FORWARD]].name,
         y: ORIENTATIONS[newLocalToGlobalLut[LEFT]].name,
       },
     });
 
-    return { axis, pivot, newCube };
+    return { axis, pivot, newDice };
   };
 
   return {

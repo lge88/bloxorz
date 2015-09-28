@@ -2,7 +2,9 @@
   "name": "bloxorz",
   "version": "0.1.0",
   "dependencies": {
+    "bezier-easing": "^1.1.1",
     "cannon": "schteppe/cannon.js",
+    "performance-now": "^0.2.0",
     "react": "^0.13.3",
     "react-three": "^0.6.2",
     "three": "^0.70.1"

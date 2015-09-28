@@ -8,18 +8,17 @@ import { createWorld } from './world';
 var state = {
   goal: level0.goal,
 
+  gridSize: 0.1,
+
   box: {
-    dimensions: {
-      width: 0.1,
-      numStories: 2,
-    },
-    position: { x: 0, y: 0, z: 1 },
+    debug: false,
+    dimension: { x: 1, y: 1, z: 2 },
+    position: { x: 0, y: 0, z: 1.0 },
     quaternion: { x: 0, y: 0, z: 0, w: 1 },
   },
 
   floor: {
     thickness: 0.01,
-    width: 0.1,
     tiles: level0.tiles,
   },
 
@@ -55,9 +54,13 @@ window.addEventListener('resize', () => {
 
 const world = createWorld({
   goal: state.goal,
-  gridWidth: state.box.dimensions.width,
-  boxNumStories: state.box.dimensions.numStories,
-  boxInitialHeight: state.box.position.z,
+  gridSize: state.gridSize,
+  boxOptions: {
+    nx: state.box.dimension.x,
+    ny: state.box.dimension.y,
+    nz: state.box.dimension.z,
+    initialHeight: state.box.position.z,
+  },
   tiles: state.floor.tiles,
 });
 

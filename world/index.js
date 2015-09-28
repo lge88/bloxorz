@@ -1,7 +1,9 @@
-import { World, NaiveBroadphase, Body, Box, Vec3 } from 'cannon';
-import { Plane, Material } from 'cannon';
+import { World, NaiveBroadphase } from 'cannon';
+import { Body, Material } from 'cannon';
+import { Plane, Box, Vec3 } from 'cannon';
 import { createRollingBox } from './rollingBox';
-const now = Date.now.bind(Date);
+import now from 'performance-now';
+import bezierEasing from 'bezier-easing';
 
 const STATE = {
   FALLING_TO_FLOOR: 'FALLING_TO_FLOOR',
@@ -21,30 +23,31 @@ const CONTROL_STATE = {
   BACKWARD: 'BACKWARD',
 };
 
-const DEFAULT_MATERIAL = new Material({
+const DEFAULT_MATERIAL = {
   friction: 1.0,
   restitution: 0.6
-});
+};
 
-const ROLLING_DURATION = 200;
+const ROLLING_DURATION = 150;
+const ROLLING_EASING_TYPE = 'easeOut';
 
 export function createWorld({
   goal,
-  gridWidth,
-  boxNumStories,
-  boxInitialHeight,
+  gridSize,
+  boxOptions,
   tiles,
 }) {
   let state = STATE.FALLING_TO_FLOOR;
   let controlState = CONTROL_STATE.NOOP;
 
+  const { nx, ny, nz, initialHeight } = boxOptions;
   let rolling = {
     currentBox: createRollingBox({
-      width: gridWidth,
-      length: gridWidth,
-      height: gridWidth * boxNumStories,
-      initialLocation: { x: [ 0, 0, 0 ], y: [ 0, 0, 0] },
-      initialOrientation: { x: 'FORWARD', y: 'LEFT' },
+      width: nx * gridSize,
+      length: ny * gridSize,
+      height: nz * gridSize,
+      location: { x: [ 0, 0, 0 ], y: [ 0, 0, 0] },
+      orientation: { x: 'FORWARD', y: 'LEFT' },
     }),
 
     direction: null,
@@ -55,6 +58,11 @@ export function createWorld({
   const tileLUT = createTilesLUT(tiles);
 
   const { world, box, plane } = initPhysicalWorld();
+
+  const easing = (() => {
+    const ease = bezierEasing[ROLLING_EASING_TYPE];
+    return (t) => ease.get(t);
+  })();
 
   function tileKeyFromLocation(x, y) {
     return `${x},${y}`;
@@ -96,13 +104,12 @@ export function createWorld({
   }
 
   function createCannonBox() {
-    const width = gridWidth;
-    const height = boxNumStories * width;
-    const shape = new Box(new Vec3(0.5 * width, 0.5 * width, 0.5 * height ));
+    const s = gridSize;
+    const shape = new Box(new Vec3(0.5 * nx * s, 0.5 * ny * s, 0.5 * nz * s ));
     const body = new Body({ mass: 5.0 });
     body.addShape(shape);
-    body.position.set(0, 0, boxInitialHeight);
-    body.material = DEFAULT_MATERIAL;
+    body.position.set(0, 0, initialHeight);
+    body.material = new Material(DEFAULT_MATERIAL);
     body.linearDamping = 0.5;
     return body;
   }
@@ -111,12 +118,12 @@ export function createWorld({
     const shape = new Plane();
     const body = new Body({ mass: 0 });
     body.addShape(shape);
-    body.material = DEFAULT_MATERIAL;
+    body.material = new Material(DEFAULT_MATERIAL);
     return body;
   }
 
   function doneInitialFalling() {
-    return box.position.z < 0.9 * boxInitialHeight &&
+    return box.position.z < 0.9 * initialHeight &&
       box.velocity.length() < 1 / 100 &&
       box.angularVelocity.length() < 1 / 100;
   }
@@ -126,8 +133,8 @@ export function createWorld({
     const location = rolling.currentBox.getLocation();
     const xs = location.x;
     const ys = location.y;
-    const x = 0.5 * (xs[0] + xs[1] + xs[2] * boxNumStories);
-    const y = 0.5 * (ys[0] + ys[1] + ys[2] * boxNumStories);
+    const x = 0.5 * (nx * xs[0] + ny * xs[1] + nz * xs[2]);
+    const y = 0.5 * (nx * ys[0] + ny * ys[1] + nz * ys[2]);
     return x === goal.x && y === goal.y;
   };
 
@@ -140,11 +147,11 @@ export function createWorld({
   };
 
   const shouldWin = () => {
-    return box.body.position.z < -0.3;
+    return body.position.z < -0.3;
   };
 
   const isLost = () => {
-    return box.body.position.z < -0.3;
+    return body.position.z < -0.3;
   };
 
   const dt = 1 / 60;
@@ -201,8 +208,9 @@ export function createWorld({
         controlState = CONTROL_STATE.NOOP;
         state = STATE.STEADY;
       } else {
-        const deg = 90 * t;
-        const { position, quaternion } = rolling.currentBox.roll(rolling.direction, deg);
+        const rollingBox = rolling.currentBox;
+        const t_ = easing(t);
+        const { position, quaternion } = rollingBox.roll(rolling.direction, t_);
         box.position.copy(position);
         box.quaternion.copy(quaternion);
       }

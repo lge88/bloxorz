@@ -1,7 +1,7 @@
 import React, { PropTypes, Component } from 'react';
 import { Object3D, Mesh } from 'react-three';
 import { BoxGeometry, MeshPhongMaterial, ImageUtils } from 'three';
-import { FlatShading, Vector3 } from 'three';
+import { FlatShading } from 'three';
 import WoodImage from '../images/wood.jpeg';
 import AxisHelper from './AxisHelper';
 
@@ -14,19 +14,19 @@ const material = new MeshPhongMaterial({
 
 export default class Box extends Component {
   static propTypes = {
-    dimensions: PropTypes.shape({
-      width: PropTypes.number.isRequired,
-      numStories: PropTypes.number.isRequired,
-    }),
+    debug: PropTypes.bool.isRequired,
+  };
+
+  static defaultProps = {
+    debug: true
   };
 
   render() {
-    const { width, numStories } = this.props.dimensions;
-    const scale = new Vector3(width, width, numStories * width);
+    const { debug } = this.props;
     return (
-      <Object3D scale={scale} {...this.props} >
+      <Object3D {...this.props} >
         <Mesh {...{ geometry, material }} />
-        <AxisHelper />
+        { debug && <AxisHelper /> }
       </Object3D>
     );
   }

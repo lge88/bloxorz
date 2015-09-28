@@ -8,10 +8,13 @@ import Floor from './Floor';
 
 export default class GameScene extends Component {
   static propTypes = {
+    gridSize: PropTypes.number.isRequired,
     box: PropTypes.shape({
-      dimensions: PropTypes.shape({
-        width: PropTypes.number.isRequired,
-        numStories: PropTypes.number.isRequired,
+      debug: PropTypes.bool.isRequired,
+      dimension: PropTypes.shape({
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        z: PropTypes.number.isRequired,
       }),
       position: PropTypes.shape({
         x: PropTypes.number.isRequired,
@@ -27,7 +30,6 @@ export default class GameScene extends Component {
     }),
 
     floor: PropTypes.shape({
-      width: PropTypes.number.isRequired,
       thickness: PropTypes.number.isRequired,
       tiles: PropTypes.array.isRequired,
     }),
@@ -59,14 +61,27 @@ export default class GameScene extends Component {
       background,
     };
 
-    const { dimensions, position: boxPosition, quaternion: boxQuaternion } = this.props.box;
+    const { gridSize } = this.props;
+    const {
+      debug,
+      dimension: boxDimension,
+      position: boxPosition,
+      quaternion: boxQuaternion
+    } = this.props.box;
+
     const boxProps = {
+      debug,
       position: (new Vector3()).copy(boxPosition),
       quaternion: (new Quaternion()).copy(boxQuaternion),
-      dimensions,
+      scale: (new Vector3()).copy(boxDimension).multiplyScalar(gridSize),
     };
 
-    const floorProps = this.props.floor;
+    const { thickness: floorThickness, tiles } = this.props.floor;
+    const floorProps = {
+      width: gridSize,
+      thickness: floorThickness,
+      tiles,
+    };
 
     const { position: cameraPosition } = this.props.camera;
 
