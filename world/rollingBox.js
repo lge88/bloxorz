@@ -1,4 +1,5 @@
 import { Body, Quaternion, Vec3 } from 'cannon';
+import { Box2, Vector2 } from 'three';
 import { createDice } from './dice';
 const { PI } = Math;
 
@@ -182,8 +183,45 @@ export function createRollingBox({
     };
   }
 
+  function getBox2OnXY() {
+    const { x, y } = getPosition();
+    const min = new Vector2();
+    const max = new Vector2();
+
+    const globalX = dice.globalToLocal('FORWARD');
+    if (globalX === 'FORWARD' || globalX === 'BACKWARD') {
+      min.x = x - hfW;
+      max.x = x + hfW;
+    } else if (globalX === 'LEFT' || globalX === 'RIGHT') {
+      min.x = x - hfL;
+      max.x = x + hfL;
+    } else if (globalX === 'UP' || globalX === 'DOWN') {
+      min.x = x - hfH;
+      max.x = x + hfH;
+    } else {
+      throw new Error(`Invalid axis ${globalX}`);
+    }
+
+    const globalY = dice.globalToLocal('LEFT');
+    if (globalY === 'FORWARD' || globalY === 'BACKWARD') {
+      min.y = y - hfW;
+      max.y = y + hfW;
+    } else if (globalY === 'LEFT' || globalY === 'RIGHT') {
+      min.y = y - hfL;
+      max.y = y + hfL;
+    } else if (globalY === 'UP' || globalY === 'DOWN') {
+      min.y = y - hfH;
+      max.y = y + hfH;
+    } else {
+      throw new Error(`Invalid axis ${globalY}`);
+    }
+
+    return new Box2(min, max);
+  }
+
   return {
     getSteadyState,
+    getBox2OnXY,
     getLocation,
     roll,
     rolled,

@@ -2,6 +2,7 @@ import { World, NaiveBroadphase } from 'cannon';
 import { Body, Material } from 'cannon';
 import { Plane, Box, Vec3 } from 'cannon';
 import { createRollingBox } from './rollingBox';
+import { createFloor } from './floor';
 import now from 'performance-now';
 import bezierEasing from 'bezier-easing';
 
@@ -55,7 +56,11 @@ export function createWorld({
     nextBox: null,
   };
 
-  const tileLUT = createTilesLUT(tiles);
+  const floor = createFloor({
+    goal,
+    width: gridSize,
+    tiles,
+  });
 
   const { world, box, plane } = initPhysicalWorld();
 
@@ -63,27 +68,6 @@ export function createWorld({
     const ease = bezierEasing[ROLLING_EASING_TYPE];
     return (t) => ease.get(t);
   })();
-
-  function tileKeyFromLocation(x, y) {
-    return `${x},${y}`;
-  }
-
-  function createTilesLUT(tiles) {
-    return tiles.reduce((lut, tile) => {
-      const key = tileKeyFromLocation(tile.x, tile.y);
-      lut[key] = tile;
-      return lut;
-    }, {});
-  }
-
-  function getTileAtLocation(x, y) {
-    const key = tileKeyFromLocation(x, y);
-    const tile = tileLUT[key];
-    if (typeof tile === 'undefined') {
-      return null;
-    }
-    return tile;
-  }
 
   function initPhysicalWorld() {
     const world = createCannonWorld();
@@ -130,17 +114,14 @@ export function createWorld({
 
   // TODO: check the dimension of box against the hole as well.
   const shouldFallToGoal = () => {
-    const location = rolling.currentBox.getLocation();
-    const xs = location.x;
-    const ys = location.y;
-    const x = 0.5 * (nx * xs[0] + ny * xs[1] + nz * xs[2]);
-    const y = 0.5 * (nx * ys[0] + ny * ys[1] + nz * ys[2]);
-    return x === goal.x && y === goal.y;
+    const box2 = rolling.currentBox.getBox2OnXY();
+    return floor.shouldFallToGoal(box2);
   };
 
   // TODO:
   const shouldFallOffEdge = () => {
-    return false;
+    const box2 = rolling.currentBox.getBox2OnXY();
+    return floor.shouldFallOffEdge(box2);
     /* const location = rolling.currentBox.getLocation(); */
     /* const tile = getTileAtLocation(location.x, location.y); */
     /* floor.at(location) */
