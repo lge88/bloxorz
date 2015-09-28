@@ -26,7 +26,7 @@ const DEFAULT_MATERIAL = new Material({
   restitution: 0.6
 });
 
-const ROLLING_DURATION = 100;
+const ROLLING_DURATION = 200;
 
 export function createWorld({
   goal,
@@ -117,10 +117,11 @@ export function createWorld({
 
   function doneInitialFalling() {
     return box.position.z < 0.9 * boxInitialHeight &&
-      box.velocity.length() < 1 / 1000 &&
-      box.angularVelocity.length() < 1 / 1000;
+      box.velocity.length() < 1 / 100 &&
+      box.angularVelocity.length() < 1 / 100;
   }
 
+  // TODO: check the dimension of box against the hole as well.
   const shouldFallToGoal = () => {
     const location = rolling.currentBox.getLocation();
     const xs = location.x;
