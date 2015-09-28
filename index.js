@@ -6,6 +6,8 @@ import loop from './lib/loop';
 import { createWorld } from './world';
 
 var state = {
+  goal: level0.goal,
+
   box: {
     dimensions: {
       width: 0.1,
@@ -52,8 +54,11 @@ window.addEventListener('resize', () => {
 });
 
 const world = createWorld({
-  box: state.box,
-  floor: state.floor,
+  goal: state.goal,
+  gridWidth: state.box.dimensions.width,
+  boxNumStories: state.box.dimensions.numStories,
+  boxInitialHeight: state.box.position.z,
+  tiles: state.floor.tiles,
 });
 
 const updateWorld = () => {

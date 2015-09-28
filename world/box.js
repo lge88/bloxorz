@@ -2,9 +2,7 @@ import { Box, Body, Vec3, Quaternion, HingeConstraint } from 'cannon';
 import { Vector3 } from 'three';
 const { abs, round, PI } = Math;
 import { box as material } from './materials';
-import { FORWARD, LEFT, UP } from '../lib/roll';
-import { BACKWARD, RIGHT, DOWN, createOrientation } from '../lib/roll';
-import { roll } from '../lib/roll';
+import { createCube } from '../lib/roll';
 
 const mass = 5;
 const VELOCITY_THRESHOLD = 1 / 100;
@@ -257,15 +255,25 @@ export function createBox({
     return steadyState;
   }
 
+  function setStatic() {
+    body.type = Body.STATIC;
+  }
+
+  function setDynamic() {
+    body.type = Body.DYNAMIC;
+  }
+
   return {
     body,
     roll,
-    isStatic,
-    isOnTheGround,
-    isAwake,
-    sleep,
-    getRollingConfiguration,
+    startRolling,
+    updateByRolling,
+    setStatic,
+    setDynamic,
     setSteadyState,
     getSteadyState,
+    isSteady,
+    sleep,
+    getRollingConfiguration,
   };
 }
