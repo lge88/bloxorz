@@ -1,12 +1,13 @@
+import now from 'performance-now';
+import bezierEasing from 'bezier-easing';
 import { World, NaiveBroadphase } from 'cannon';
 import { Body, Material } from 'cannon';
 import { Plane, Box, Vec3 } from 'cannon';
+import { rotatedDisplacements, rotatedVelocities } from '../../lib/rotate';
+
 import { createRollingBox } from './rollingBox';
 import { createFloor } from './floor';
-import { rotatedDisplacements, rotatedVelocities } from '../lib/rotate';
 const { PI } = Math;
-import now from 'performance-now';
-import bezierEasing from 'bezier-easing';
 
 const STATE = {
   FALLING_TO_FLOOR: 'FALLING_TO_FLOOR',
@@ -255,17 +256,17 @@ export function createWorld({
     };
   };
 
-  const rollBoxForward = () => { controlState = CONTROL_STATE.FORWARD; };
-  const rollBoxBackward = () => { controlState = CONTROL_STATE.BACKWARD; };
-  const rollBoxLeft = () => { controlState = CONTROL_STATE.LEFT; };
-  const rollBoxRight = () => { controlState = CONTROL_STATE.RIGHT; };
+  const roll = (direction) => {
+    if (direction in CONTROL_STATE) {
+      controlState = CONTROL_STATE[direction];
+      return;
+    }
+    throw new Error(`Invalid roll direction ${direction}.`);
+  };
 
   return {
     getBoxBodyState,
-    rollBoxForward,
-    rollBoxBackward,
-    rollBoxLeft,
-    rollBoxRight,
+    roll,
     update,
   };
 }
