@@ -13,12 +13,12 @@ var state = {
   box: {
     debug: false,
     dimension: { x: 1, y: 1, z: 2 },
-    position: { x: 0, y: 0, z: 1.0 },
+    position: { x: 0, y: 0, z: 1.2 },
     quaternion: { x: 0, y: 0, z: 0, w: 1 },
   },
 
   floor: {
-    thickness: 0.01,
+    thickness: 0.03,
     tiles: level0.tiles,
   },
 

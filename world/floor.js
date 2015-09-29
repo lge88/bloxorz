@@ -75,8 +75,6 @@ export function createFloor({
       }
     }
 
-    console.log('local min max', locationMin, locationMax);
-    console.log('count', count);
     return count / total <= 0.5;
   }
 

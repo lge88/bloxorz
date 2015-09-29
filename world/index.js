@@ -3,6 +3,8 @@ import { Body, Material } from 'cannon';
 import { Plane, Box, Vec3 } from 'cannon';
 import { createRollingBox } from './rollingBox';
 import { createFloor } from './floor';
+import { rotatedDisplacements, rotatedVelocities } from '../lib/rotate';
+const { PI } = Math;
 import now from 'performance-now';
 import bezierEasing from 'bezier-easing';
 
@@ -31,6 +33,7 @@ const DEFAULT_MATERIAL = {
 
 const ROLLING_DURATION = 150;
 const ROLLING_EASING_TYPE = 'easeOut';
+const ROLLING_RATE = 0.5 * PI / (ROLLING_DURATION / 1000);
 
 export function createWorld({
   goal,
@@ -54,6 +57,8 @@ export function createWorld({
     direction: null,
     startedTime: null,
     nextBox: null,
+    axis: null,
+    pivot: null,
   };
 
   const floor = createFloor({
@@ -135,11 +140,22 @@ export function createWorld({
     return body.position.z < -0.3;
   };
 
+  const clearRollingState = () => {
+    rolling.nextBox = null;
+    rolling.startedTime = null;
+    rolling.direction = null;
+    rolling.pivot = null;
+    rolling.axis = null;
+  };
+
   const dt = 1 / 60;
   const update = () => {
     switch (state) {
     case STATE.FALLING_TO_FLOOR:
       if (doneInitialFalling()) {
+        const { position, quaternion } = rolling.currentBox.getSteadyState();
+        box.position.copy(position);
+        box.quaternion.copy(quaternion);
         box.type = Body.STATIC;
         box.velocity.setZero();
         box.angularVelocity.setZero();
@@ -152,6 +168,12 @@ export function createWorld({
         rolling.nextBox = rolling.currentBox.rolled(controlState);
         rolling.startedTime = now();
         rolling.direction = controlState;
+
+        const { pivot, axis } = rolling.currentBox.roll(controlState);
+        rolling.pivot = pivot;
+        rolling.axis = axis;
+
+        box.type = Body.STATIC;
         state = STATE.ROLLING;
       }
       break;
@@ -161,9 +183,6 @@ export function createWorld({
       const t = (currentTime - rolling.startedTime) / ROLLING_DURATION;
       if (t >= 1) {
         rolling.currentBox = rolling.nextBox;
-        rolling.startedTime = null;
-        rolling.direction = null;
-        rolling.nextBox = null;
 
         const { position, quaternion } = rolling.currentBox.getSteadyState();
         box.position.copy(position);
@@ -173,25 +192,35 @@ export function createWorld({
           state = STATE.FALLING_TO_GOAL_HOLE;
           world.removeBody(plane);
           box.type = Body.DYNAMIC;
-          break;
-        }
+        } else if (shouldFallOffEdge()) {
+          // Add some velocity to box.
+          const { axis, pivot } = rolling;
+          const {
+            velocity,
+            angularVelocity,
+          } = rotatedVelocities({ position, quaternion }, pivot, axis, PI / 2, ROLLING_RATE);
+          box.velocity.copy(velocity);
+          box.angularVelocity.copy(angularVelocity);
 
-        if (shouldFallOffEdge()) {
+          console.log('v', velocity, 'a', angularVelocity);
+
+
           state = STATE.FALLING_OFF_EDGE;
           world.removeBody(plane);
-          // TODO: to make it fall in half-hanging situation.
-          // box should have angular velocity.
           box.type = Body.DYNAMIC;
-          break;
+        } else {
+          box.type = Body.STATIC;
+          controlState = CONTROL_STATE.NOOP;
+          state = STATE.STEADY;
         }
 
-        box.type = Body.STATIC;
-        controlState = CONTROL_STATE.NOOP;
-        state = STATE.STEADY;
+        clearRollingState();
       } else {
+        const { pivot, axis } = rolling;
+        const angle = 0.5 * PI * easing(t);
         const rollingBox = rolling.currentBox;
-        const t_ = easing(t);
-        const { position, quaternion } = rollingBox.roll(rolling.direction, t_);
+        const { position, quaternion } = rotatedDisplacements(rollingBox.getSteadyState(), pivot, axis, angle);
+
         box.position.copy(position);
         box.quaternion.copy(quaternion);
       }

@@ -1,4 +1,4 @@
-import { Body, Quaternion, Vec3 } from 'cannon';
+import { Body, Vec3 } from 'cannon';
 import { Box2, Vector2 } from 'three';
 import { createDice } from './dice';
 const { PI } = Math;
@@ -150,7 +150,7 @@ export function createRollingBox({
   // returns { position, quaternion }
   // getSteadyState() === roll(direction, 0)
   // rolled(direction).getSteadyState() === roll(direction, 1)
-  function roll(direction, t) {
+  function roll(direction) {
     const dims = [ width, length, height ];
     let { axis, pivot } = dice.roll(direction);
 
@@ -161,19 +161,7 @@ export function createRollingBox({
     axis = new Vec3(...axis);
     axis = body.vectorToWorldFrame(axis);
 
-    const angle = 0.5 * PI * t;
-    const q = new Quaternion();
-    q.setFromAxisAngle(axis, angle);
-    const quaternion = q.mult(getQuaternion());
-
-    const tmpFrame = new Body();
-    tmpFrame.position.copy(pivot);
-    const centroidInTmpFrame = tmpFrame.pointToLocalFrame(getPosition());
-
-    tmpFrame.quaternion.copy(q);
-    const position = tmpFrame.pointToWorldFrame(centroidInTmpFrame);
-
-    return { position, quaternion };
+    return { pivot, axis };
   }
 
   function getLocation() {
