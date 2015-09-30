@@ -19,7 +19,10 @@ const GameContainer = React.createClass({
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('keydown', this._onKeyDown, false);
     store.addChangeListener(this._onStoreChange);
-    this._onStoreChange();
+    store.dispatch({
+      type: 'LOAD_STAGE',
+      name: 'Level 0',
+    });
   },
 
   componentWillUnmount() {

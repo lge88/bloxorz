@@ -1,0 +1,16 @@
+{
+  "name": "Tiles",
+  "start": {
+    "x": 0,
+    "y": 0
+  },
+  "goal": {
+    "x": 1,
+    "y": 0
+  },
+  "tiles": [
+    { "x": 0, "y": -1, "type": "RoundSwitch" },
+    { "x": 0, "y": 0, "type": "Normal" },
+    { "x": 0, "y": 1, "type": "CrossSwitch" }
+  ]
+}

@@ -7,7 +7,8 @@
     "performance-now": "^0.2.0",
     "react": "^0.13.3",
     "react-three": "^0.6.2",
-    "three": "^0.70.1"
+    "three": "^0.70.1",
+    "whatwg-fetch": "^0.9.0"
   },
   "devDependencies": {
     "babel-core": "^5.8.23",

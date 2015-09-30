@@ -3,10 +3,10 @@ import bezierEasing from 'bezier-easing';
 import { World, NaiveBroadphase } from 'cannon';
 import { Body, Material } from 'cannon';
 import { Plane, Box, Vec3 } from 'cannon';
-import { rotatedDisplacements, rotatedVelocities } from '../../lib/rotate';
 
 import { createRollingBox } from './rollingBox';
 import { createFloor } from './floor';
+import { rotatedDisplacements, rotatedVelocities } from './rotate';
 const { PI } = Math;
 
 const STATE = {
@@ -45,7 +45,8 @@ export function createWorld({
   let state = STATE.FALLING_TO_FLOOR;
   let controlState = CONTROL_STATE.NOOP;
 
-  const { nx, ny, nz, initialHeight } = boxOptions;
+  const { nx, ny, nz, position: boxPosition } = boxOptions;
+  const initialHeight = boxPosition.z;
   let rolling = {
     currentBox: createRollingBox({
       width: nx * gridSize,
@@ -98,7 +99,7 @@ export function createWorld({
     const shape = new Box(new Vec3(0.5 * nx * s, 0.5 * ny * s, 0.5 * nz * s ));
     const body = new Body({ mass: 5.0 });
     body.addShape(shape);
-    body.position.set(0, 0, initialHeight);
+    body.position.copy(boxPosition);
     body.material = new Material(DEFAULT_MATERIAL);
     body.linearDamping = 0.5;
     return body;
