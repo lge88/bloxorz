@@ -6,9 +6,13 @@ import Camera from './Camera';
 import Box from './Box';
 import Floor from './Floor';
 
+const SCENE_BACKGROUND_COLOR = 0x999999;
+const CAMERA_NAME = 'main';
+
 export default class GameScene extends Component {
   static propTypes = {
     gridSize: PropTypes.number.isRequired,
+
     box: PropTypes.shape({
       debug: PropTypes.bool.isRequired,
       dimension: PropTypes.shape({
@@ -50,52 +54,70 @@ export default class GameScene extends Component {
     height: PropTypes.number.isRequired,
   };
 
-  render() {
+  _getSceneProps() {
     const { width, height } = this.props;
-    const background = 0x999999;
-    const camera = 'main';
-    const sceneProps = {
+    return {
       width,
       height,
-      camera,
-      background,
+      camera: CAMERA_NAME,
+      background: SCENE_BACKGROUND_COLOR,
     };
+  }
 
+  _getCameraProps() {
+    const { width, height } = this.props;
+    const { position } = this.props.camera;
+    return {
+      name: CAMERA_NAME,
+      position,
+      aspect: width / height,
+    };
+  }
+
+  _getLightsProps() {
+    return this.props.lights;
+  }
+
+  _getBoxProps() {
     const { gridSize } = this.props;
     const {
       debug,
-      dimension: boxDimension,
-      position: boxPosition,
-      quaternion: boxQuaternion
+      dimension,
+      position,
+      quaternion,
     } = this.props.box;
 
-    const boxProps = {
+    return {
       debug,
-      position: (new Vector3()).copy(boxPosition),
-      quaternion: (new Quaternion()).copy(boxQuaternion),
-      scale: (new Vector3()).copy(boxDimension).multiplyScalar(gridSize),
+      position: (new Vector3()).copy(position),
+      quaternion: (new Quaternion()).copy(quaternion),
+      scale: (new Vector3()).copy(dimension).multiplyScalar(gridSize),
     };
+  }
 
-    const { thickness: floorThickness, tiles } = this.props.floor;
-    const floorProps = {
+  _getFloorProps() {
+    const { gridSize } = this.props;
+    const { thickness, tiles } = this.props.floor;
+    return {
       width: gridSize,
-      thickness: floorThickness,
+      thickness,
       tiles,
     };
+  }
 
-    const { position: cameraPosition } = this.props.camera;
-
-    const { intensity: lightIntensity } = this.props.lights;
+  render() {
+    const sceneProps = this._getSceneProps();
+    const cameraProps = this._getCameraProps();
+    const boxProps = this._getBoxProps();
+    const floorProps = this._getFloorProps();
+    const lightsProps = this._getLightsProps();
 
     return (
       <Scene { ...sceneProps }>
         <Box {...boxProps} />
         <Floor {...floorProps} />
-        <Camera name = "main"
-                aspect={width / height}
-                position={cameraPosition}
-        />
-        <Lights lightIntensity={lightIntensity}/>
+        <Camera {...cameraProps} />
+        <Lights {...lightsProps} />
       </Scene>
     );
   }

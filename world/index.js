@@ -127,6 +127,7 @@ export function createWorld({
 
   // TODO:
   const shouldFallOffEdge = () => {
+    debugger;
     const box2 = rolling.currentBox.getBox2OnXY();
     return floor.shouldFallOffEdge(box2);
     /* const location = rolling.currentBox.getLocation(); */
@@ -190,25 +191,21 @@ export function createWorld({
         box.position.copy(position);
         box.quaternion.copy(quaternion);
 
-        if (shouldFallToGoal()) {
+        const rect = rolling.currentBox.getBox2OnXY();
+        if (floor.shouldFallToGoal(rect)) {
           state = STATE.FALLING_TO_GOAL_HOLE;
           world.removeBody(plane);
           box.type = Body.DYNAMIC;
-        } else if (shouldFallOffEdge()) {
-          // Add some velocity to box.
-          const { axis, pivot } = rolling;
-          const {
-            velocity,
-            angularVelocity,
-          } = rotatedVelocities({ position, quaternion }, pivot, axis, PI / 2, ROLLING_RATE);
-          box.velocity.copy(velocity);
-          box.angularVelocity.copy(angularVelocity);
+        } else if (floor.shouldFallOffEdge(rect)) {
+          // Replace infinite plane with bricks under the box
+          world.removeBody(plane);
 
-          console.log('v', velocity, 'a', angularVelocity);
-
+          const bricks = floor.getPhysicalBricksUnderBox(rect);
+          bricks.forEach((brick) => {
+            world.addBody(brick);
+          });
 
           state = STATE.FALLING_OFF_EDGE;
-          world.removeBody(plane);
           box.type = Body.DYNAMIC;
         } else {
           box.type = Body.STATIC;
