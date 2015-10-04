@@ -3,25 +3,16 @@ import stages from '../stages';
 import { createWorld as createWorld_ } from '../world';
 
 let state = {
-  stage: {
-    name: null,
-    displayName: null,
-    start: null,
-    goal: null,
-  },
-
   gridSize: 0.1,
 
   box: {
     debug: false,
     dimension: { x: 1, y: 1, z: 2 },
-    position: { x: 0, y: 0, z: 1.2 },
-    quaternion: { x: 0, y: 0, z: 0, w: 1 },
+    initialHeight: 1.2,
   },
 
   floor: {
     thickness: 0.03,
-    tiles: [],
   },
 
   lights: {
@@ -32,10 +23,35 @@ let state = {
     position: { x: 2, y: -5, z: 5 },
   },
 
-  width: window.innerWidth,
-  height: window.innerHeight,
+  viewPort: {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  },
 
   paused: false,
+
+  // States updated every frame:
+  world: {
+    // Setup when load:
+    stage: {
+      name: null,
+      url: null,
+    },
+    goal: null,
+    tiles: [],
+
+    // Updated every frame:
+    state: null,
+    bodies: {
+      box: {
+        position: {},
+        // position: { x: 0, y: 0, z: 1.2 },
+        quaternion: {},
+        // quaternion: { x: 0, y: 0, z: 0, w: 1 },
+      },
+    },
+  },
+
 };
 
 const listeners = [];
@@ -43,10 +59,9 @@ const listeners = [];
 let world = null;
 let handle = {};
 function createWorld(state) {
-  const { stage, gridSize, box, floor } = state;
-  const { goal } = stage;
-  const { dimension, position } = box;
-  const { tiles } = floor;
+  const { gridSize, box } = state;
+  const { goal, tiles } = state.world;
+  const { dimension, initialHeight } = box;
 
   world = createWorld_({
     goal,
@@ -56,16 +71,27 @@ function createWorld(state) {
       nx: dimension.x,
       ny: dimension.y,
       nz: dimension.z,
-      position: position,
+      position: { x: 0, y: 0, z: initialHeight },
     },
   });
 
   function updateWorld() {
     world.update();
-    const { position, quaternion } = world.getBoxBodyState();
-    Object.assign(state.box.position, position);
-    Object.assign(state.box.quaternion, quaternion);
-    emitChange();
+
+    const worldState = world.getState();
+
+    dispatch({
+      type: 'UPDATE_WORLD_STATE',
+      state: worldState,
+    });
+
+    if (worldState.state === 'WON') {
+      handle.remove();
+      alert('You win!');
+    } else if (worldState.state === 'LOST') {
+      handle.remove();
+      alert('You lost!');
+    }
   }
 
   handle = loop.add(updateWorld);
@@ -80,13 +106,9 @@ function loadStage(level) {
       return res.json();
     })
     .then((stage) => {
-      const { name, start, goal } = stage;
-      Object.assign(state.stage, { name, start, goal });
-
-      state.floor.tiles = stage.tiles;
-      state.box.position.x = stage.start.x * state.gridSize;
-      state.box.position.y = stage.start.y * state.gridSize;
-
+      const { name, goal, tiles } = stage;
+      Object.assign(state.world.stage, { url, name });
+      Object.assign(state.world, { goal, tiles });
       [ world, handle ] = createWorld(state);
     })
     .catch((err) => {
@@ -125,7 +147,7 @@ export function dispatch(action) {
 
   case 'RESIZE':
     const { width, height } = action;
-    Object.assign(state, { width, height });
+    Object.assign(state.viewPort, { width, height });
     emitChange();
     break;
 
@@ -144,6 +166,11 @@ export function dispatch(action) {
   case 'TOGGLE_PAUSE_RESUME':
     handle.enabled = !(handle.enabled);
     state.paused = !(state.paused);
+    emitChange();
+    break;
+
+  case 'UPDATE_WORLD_STATE':
+    Object.assign(state.world, action.state);
     emitChange();
     break;
 

@@ -20,22 +20,10 @@ export default class GameScene extends Component {
         y: PropTypes.number.isRequired,
         z: PropTypes.number.isRequired,
       }),
-      position: PropTypes.shape({
-        x: PropTypes.number.isRequired,
-        y: PropTypes.number.isRequired,
-        z: PropTypes.number.isRequired,
-      }),
-      quaternion: PropTypes.shape({
-        x: PropTypes.number.isRequired,
-        y: PropTypes.number.isRequired,
-        z: PropTypes.number.isRequired,
-        w: PropTypes.number.isRequired,
-      }),
     }),
 
     floor: PropTypes.shape({
       thickness: PropTypes.number.isRequired,
-      tiles: PropTypes.array.isRequired,
     }),
 
     lights: PropTypes.shape({
@@ -50,12 +38,19 @@ export default class GameScene extends Component {
       }),
     }),
 
-    width: PropTypes.number.isRequired,
-    height: PropTypes.number.isRequired,
+    viewPort: PropTypes.shape({
+      width: PropTypes.number.isRequired,
+      height: PropTypes.number.isRequired,
+    }),
+
+    world: PropTypes.shape({
+      tiles: PropTypes.array.isRequired,
+      bodies: PropTypes.object,
+    }),
   };
 
   _getSceneProps() {
-    const { width, height } = this.props;
+    const { width, height } = this.props.viewPort;
     return {
       width,
       height,
@@ -65,7 +60,7 @@ export default class GameScene extends Component {
   }
 
   _getCameraProps() {
-    const { width, height } = this.props;
+    const { width, height } = this.props.viewPort;
     const { position } = this.props.camera;
     return {
       name: CAMERA_NAME,
@@ -83,9 +78,12 @@ export default class GameScene extends Component {
     const {
       debug,
       dimension,
+    } = this.props.box;
+
+    const {
       position,
       quaternion,
-    } = this.props.box;
+    } = this.props.world.bodies.box;
 
     return {
       debug,
@@ -97,7 +95,8 @@ export default class GameScene extends Component {
 
   _getFloorProps() {
     const { gridSize } = this.props;
-    const { thickness, tiles } = this.props.floor;
+    const { thickness } = this.props.floor;
+    const { tiles } = this.props.world;
     return {
       width: gridSize,
       thickness,

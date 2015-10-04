@@ -6,7 +6,7 @@ import { Plane, Box, Vec3 } from 'cannon';
 
 import { createRollingBox } from './rollingBox';
 import { createFloor } from './floor';
-import { rotatedDisplacements, rotatedVelocities } from './rotate';
+import { rotatedDisplacements } from './rotate';
 const { PI } = Math;
 
 const STATE = {
@@ -34,7 +34,6 @@ const DEFAULT_MATERIAL = {
 
 const ROLLING_DURATION = 150;
 const ROLLING_EASING_TYPE = 'easeOut';
-const ROLLING_RATE = 0.5 * PI / (ROLLING_DURATION / 1000);
 
 export function createWorld({
   goal,
@@ -119,28 +118,26 @@ export function createWorld({
       box.angularVelocity.length() < 1 / 100;
   }
 
-  // TODO: check the dimension of box against the hole as well.
-  const shouldFallToGoal = () => {
-    const box2 = rolling.currentBox.getBox2OnXY();
-    return floor.shouldFallToGoal(box2);
-  };
-
-  // TODO:
-  const shouldFallOffEdge = () => {
-    debugger;
-    const box2 = rolling.currentBox.getBox2OnXY();
-    return floor.shouldFallOffEdge(box2);
-    /* const location = rolling.currentBox.getLocation(); */
-    /* const tile = getTileAtLocation(location.x, location.y); */
-    /* floor.at(location) */
-  };
-
   const shouldWin = () => {
-    return body.position.z < -0.3;
+    return box.position.z < -0.3;
   };
 
-  const isLost = () => {
-    return body.position.z < -0.3;
+  const shouldLose = () => {
+    return box.position.z < -0.3;
+  };
+
+  const setupRollingState = (direction) => {
+    const { currentBox } = rolling;
+    const { pivot, axis } = currentBox.roll(direction);
+    const nextBox = currentBox.rolled(direction);
+    const startedTime = now();
+    Object.assign(rolling, {
+      nextBox,
+      startedTime,
+      direction,
+      pivot,
+      axis
+    });
   };
 
   const clearRollingState = () => {
@@ -151,30 +148,40 @@ export function createWorld({
     rolling.axis = null;
   };
 
+  const setBoxToSteadyState = () => {
+    const { position, quaternion } = rolling.currentBox.getSteadyState();
+    box.position.copy(position);
+    box.quaternion.copy(quaternion);
+    box.velocity.setZero();
+    box.angularVelocity.setZero();
+  };
+
+  const rotateBoxBy = (angle) => {
+    const { pivot, axis } = rolling;
+    const rollingBox = rolling.currentBox;
+    const { position, quaternion } = rotatedDisplacements(rollingBox.getSteadyState(), pivot, axis, angle);
+    box.position.copy(position);
+    box.quaternion.copy(quaternion);
+  };
+
   const dt = 1 / 60;
   const update = () => {
+    const currentTime = now();
     switch (state) {
     case STATE.FALLING_TO_FLOOR:
+      world.step(dt);
       if (doneInitialFalling()) {
-        const { position, quaternion } = rolling.currentBox.getSteadyState();
-        box.position.copy(position);
-        box.quaternion.copy(quaternion);
+        setBoxToSteadyState();
+
         box.type = Body.STATIC;
-        box.velocity.setZero();
-        box.angularVelocity.setZero();
         state = STATE.STEADY;
       }
       break;
 
     case STATE.STEADY:
       if (controlState !== CONTROL_STATE.NOOP) {
-        rolling.nextBox = rolling.currentBox.rolled(controlState);
-        rolling.startedTime = now();
-        rolling.direction = controlState;
-
-        const { pivot, axis } = rolling.currentBox.roll(controlState);
-        rolling.pivot = pivot;
-        rolling.axis = axis;
+        const direction = controlState;
+        setupRollingState(direction);
 
         box.type = Body.STATIC;
         state = STATE.ROLLING;
@@ -182,75 +189,73 @@ export function createWorld({
       break;
 
     case STATE.ROLLING:
-      const currentTime = now();
       const t = (currentTime - rolling.startedTime) / ROLLING_DURATION;
       if (t >= 1) {
         rolling.currentBox = rolling.nextBox;
-
-        const { position, quaternion } = rolling.currentBox.getSteadyState();
-        box.position.copy(position);
-        box.quaternion.copy(quaternion);
+        setBoxToSteadyState();
 
         const rect = rolling.currentBox.getBox2OnXY();
         if (floor.shouldFallToGoal(rect)) {
+          // Remove infinite plane so the box will free fall.
+          world.removeBody(plane);
+
+          box.type = Body.DYNAMIC;
           state = STATE.FALLING_TO_GOAL_HOLE;
-          world.removeBody(plane);
-          box.type = Body.DYNAMIC;
         } else if (floor.shouldFallOffEdge(rect)) {
-          // Replace infinite plane with bricks under the box
+          // Replace infinite plane with bricks under the box.
           world.removeBody(plane);
-
           const bricks = floor.getPhysicalBricksUnderBox(rect);
-          bricks.forEach((brick) => {
-            world.addBody(brick);
-          });
+          bricks.forEach((brick) => world.addBody(brick));
 
-          state = STATE.FALLING_OFF_EDGE;
           box.type = Body.DYNAMIC;
+          state = STATE.FALLING_OFF_EDGE;
         } else {
           box.type = Body.STATIC;
-          controlState = CONTROL_STATE.NOOP;
           state = STATE.STEADY;
         }
 
+        controlState = CONTROL_STATE.NOOP;
         clearRollingState();
       } else {
-        const { pivot, axis } = rolling;
         const angle = 0.5 * PI * easing(t);
-        const rollingBox = rolling.currentBox;
-        const { position, quaternion } = rotatedDisplacements(rollingBox.getSteadyState(), pivot, axis, angle);
-
-        box.position.copy(position);
-        box.quaternion.copy(quaternion);
+        rotateBoxBy(angle);
       }
       break;
 
-    case STATE.WILL_WIN:
-      const { z } = box.body.position;
-      // should fall some distance before claim winning;
-      if (z < -0.3) { state = STATE.WON; }
+    case STATE.FALLING_TO_GOAL_HOLE:
+      world.step(dt);
+      if (shouldWin()) { state = STATE.WON; }
+      break;
+
+    case STATE.FALLING_OFF_EDGE:
+      world.step(dt);
+      if (shouldLose()) { state = STATE.LOST; }
       break;
 
     case STATE.WON:
       break;
-      // TODO: call onWon()
 
     case STATE.LOST:
-      // TODO: call onLost()
-
       break;
 
     default:
       break;
     }
-
-    world.step(dt);
   };
 
   const getBoxBodyState = () => {
     return {
       position: box.position,
       quaternion: box.quaternion,
+    };
+  };
+
+  const getState = () => {
+    return {
+      state,
+      bodies: {
+        box: getBoxBodyState(),
+      },
     };
   };
 
@@ -264,6 +269,7 @@ export function createWorld({
 
   return {
     getBoxBodyState,
+    getState,
     roll,
     update,
   };
