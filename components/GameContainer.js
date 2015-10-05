@@ -21,10 +21,8 @@ const GameContainer = React.createClass({
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('keydown', this._onKeyDown, false);
     store.addChangeListener(this._onStoreChange);
-    store.dispatch({
-      type: 'LOAD_STAGE',
-      name: 'Level 0',
-    });
+
+    this._loadStage('Level 0');
   },
 
   componentWillUnmount() {
@@ -72,12 +70,24 @@ const GameContainer = React.createClass({
     });
   },
 
+  _loadStage(stageName) {
+    store.dispatch({
+      type: 'RESUME',
+    });
+
+    store.dispatch({
+      type: 'LOAD_STAGE',
+      name: stageName,
+    });
+  },
+
   _getGameGUIProps() {
     return {
       currentStage: this.state.world && this.state.world.stage,
       paused: this.state.paused,
       togglePauseResume: this._togglePauseResume,
       stages,
+      loadStage: this._loadStage,
     };
   },
 

@@ -34,16 +34,18 @@ const GameMenu = React.createClass({
   propTypes: {
     visible: PropTypes.bool.isRequired,
     stages: PropTypes.object.isRequired,
+    loadStage: PropTypes.func.isRequired,
   },
 
   render() {
-    const { stages, visible } = this.props;
+    const { stages, visible, loadStage } = this.props;
     const offsetY = visible ? 0 : 350;
     const stageLinks = Object.keys(stages).map((stageName) => {
-      const url = stages[stageName];
       return (
         <div>
-          <a href={url} target="_blank">{stageName}</a>
+          <button onClick={loadStage.bind(null, stageName)}>
+            {stageName}
+          </button>
         </div>
       );
     });
@@ -66,18 +68,20 @@ const GameGUI = React.createClass({
     currentStage: PropTypes.object,
     paused: PropTypes.bool.isRequired,
     togglePauseResume: PropTypes.func.isRequired,
-    stages: PropTypes.object,
+    stages: PropTypes.object.isRequired,
+    loadStage: PropTypes.func.isRequired,
   },
 
   render() {
-    const { stages, currentStage, paused, togglePauseResume } = this.props;
+    const { currentStage, paused, togglePauseResume } = this.props;
+    const { stages, loadStage } = this.props;
 
     const stageName = (currentStage && currentStage.name) || 'N/A';
     return (
       <div style={{ position: 'absolute', top: '0px', left: '0px', width: '100%', height: '100%' }}>
         <GameMenuButton onClick={togglePauseResume} />
         <GameStatus stageName={stageName} />
-        <GameMenu visible={paused} stages={stages} />
+        <GameMenu visible={paused} stages={stages} loadStage={loadStage} />
       </div>
     );
   }

@@ -57,7 +57,7 @@ let state = {
 const listeners = [];
 
 let world = null;
-let handle = {};
+let handle = null;
 function createWorld(state) {
   const { gridSize, box } = state;
   const { goal, tiles } = state.world;
@@ -107,6 +107,12 @@ function loadStage(level) {
     })
     .then((stage) => {
       const { name, goal, tiles } = stage;
+      // clear current stage;
+      if (handle) {
+        handle.remove();
+        handle = null;
+      }
+
       Object.assign(state.world.stage, { url, name });
       Object.assign(state.world, { goal, tiles });
       [ world, handle ] = createWorld(state);
@@ -152,21 +158,23 @@ export function dispatch(action) {
     break;
 
   case 'PAUSE':
-    handle.enabled = false;
+    if (handle !== null) { handle.enabled = false; }
     state.paused = true;
     emitChange();
     break;
 
   case 'RESUME':
-    handle.enabled = true;
+    if (handle !== null) { handle.enabled = true; }
     state.paused = false;
     emitChange();
     break;
 
   case 'TOGGLE_PAUSE_RESUME':
-    handle.enabled = !(handle.enabled);
-    state.paused = !(state.paused);
-    emitChange();
+    if (state.paused) {
+      dispatch({ type: 'RESUME' });
+    } else {
+      dispatch({ type: 'PAUSE' });
+    }
     break;
 
   case 'UPDATE_WORLD_STATE':
