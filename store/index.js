@@ -88,9 +88,11 @@ function createWorld(state) {
     if (worldState.state === 'WON') {
       handle.remove();
       alert('You win!');
+      dispatch({ type: 'PAUSE' });
     } else if (worldState.state === 'LOST') {
       handle.remove();
       alert('You lost!');
+      dispatch({ type: 'PAUSE' });
     }
   }
 
