@@ -1,3 +1,6 @@
+import 'babel-core/polyfill';
+import 'whatwg-fetch';
+
 import React from 'react';
 import Game from './components/Game';
 
