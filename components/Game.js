@@ -88,7 +88,7 @@ const Game = React.createClass({
       currentStage: this.state.world && this.state.world.stage,
       paused: this.state.paused,
       togglePauseResume: this._togglePauseResume,
-      stages,
+      stages: stages.data,
       loadStage: this._loadStage,
     };
   },

@@ -4,36 +4,17 @@ import { World, NaiveBroadphase } from 'cannon';
 import { Body, Material } from 'cannon';
 import { Plane, Box, Vec3 } from 'cannon';
 
+import { STATE, CONTROL_STATE, DEFAULT_MATERIAL } from './constants';
+import { ROLLING_DURATION, ROLLING_EASING_TYPE } from './constants';
 import { createRollingBox } from './rollingBox';
 import { createFloor } from './floor';
-import { rotatedDisplacements } from './rotate';
+import { rotateBody } from './rotate';
 const { PI } = Math;
 
-const STATE = {
-  FALLING_TO_FLOOR: 'FALLING_TO_FLOOR',
-  STEADY: 'STEADY',
-  ROLLING: 'ROLLING',
-  FALLING_TO_GOAL_HOLE: 'FALLING_TO_GOAL_HOLE',
-  FALLING_OFF_EDGE: 'FALLING_OFF_EDGE',
-  WON: 'WON',
-  LOST: 'LOST',
-};
-
-const CONTROL_STATE = {
-  NOOP: 'NOOP',
-  LEFT: 'LEFT',
-  RIGHT: 'RIGHT',
-  FORWARD: 'FORWARD',
-  BACKWARD: 'BACKWARD',
-};
-
-const DEFAULT_MATERIAL = {
-  friction: 1.0,
-  restitution: 0.6
-};
-
-const ROLLING_DURATION = 150;
-const ROLLING_EASING_TYPE = 'easeOut';
+const easing = (() => {
+  const ease = bezierEasing[ROLLING_EASING_TYPE];
+  return (t) => ease.get(t);
+})();
 
 export function createWorld({
   goal,
@@ -41,11 +22,11 @@ export function createWorld({
   boxOptions,
   tiles,
 }) {
-  let state = STATE.FALLING_TO_FLOOR;
-  let controlState = CONTROL_STATE.NOOP;
-
   const { nx, ny, nz, position: boxPosition } = boxOptions;
   const initialHeight = boxPosition.z;
+
+  let state = STATE.FALLING_TO_FLOOR;
+  let controlState = CONTROL_STATE.NOOP;
   let rolling = {
     currentBox: createRollingBox({
       width: nx * gridSize,
@@ -69,11 +50,6 @@ export function createWorld({
   });
 
   const { world, box, plane } = initPhysicalWorld();
-
-  const easing = (() => {
-    const ease = bezierEasing[ROLLING_EASING_TYPE];
-    return (t) => ease.get(t);
-  })();
 
   function initPhysicalWorld() {
     const world = createCannonWorld();
@@ -157,9 +133,14 @@ export function createWorld({
   };
 
   const rotateBoxBy = (angle) => {
-    const { pivot, axis } = rolling;
-    const rollingBox = rolling.currentBox;
-    const { position, quaternion } = rotatedDisplacements(rollingBox.getSteadyState(), pivot, axis, angle);
+    const { currentBox, pivot, axis } = rolling;
+    const steadyBodyState = currentBox.getSteadyState();
+    const { position, quaternion } = rotateBody(
+      steadyBodyState,
+      pivot,
+      axis,
+      angle
+    );
     box.position.copy(position);
     box.quaternion.copy(quaternion);
   };
@@ -200,7 +181,7 @@ export function createWorld({
           world.removeBody(plane);
 
           box.type = Body.DYNAMIC;
-          state = STATE.FALLING_TO_GOAL_HOLE;
+          state = STATE.FALLING_IN_HOLE;
         } else if (floor.shouldFallOffEdge(rect)) {
           // Replace infinite plane with bricks under the box.
           world.removeBody(plane);
@@ -222,7 +203,7 @@ export function createWorld({
       }
       break;
 
-    case STATE.FALLING_TO_GOAL_HOLE:
+    case STATE.FALLING_IN_HOLE:
       world.step(dt);
       if (shouldWin()) { state = STATE.WON; }
       break;
@@ -233,11 +214,7 @@ export function createWorld({
       break;
 
     case STATE.WON:
-      break;
-
     case STATE.LOST:
-      break;
-
     default:
       break;
     }

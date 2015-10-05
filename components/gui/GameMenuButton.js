@@ -9,7 +9,7 @@ const GameMenuButton = React.createClass({
     return (
       <button style={GameMenuButton.styles}
               onClick={this.props.onClick}>
-        Main menu
+        Main Menu
       </button>
     );
   }

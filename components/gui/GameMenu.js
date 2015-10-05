@@ -3,18 +3,19 @@ import React, { PropTypes } from 'react';
 const GameMenu = React.createClass({
   propTypes: {
     visible: PropTypes.bool.isRequired,
-    stages: PropTypes.object.isRequired,
+    stages: PropTypes.array.isRequired,
     loadStage: PropTypes.func.isRequired,
   },
 
   render() {
     const { stages, visible, loadStage } = this.props;
     const offsetY = visible ? 0 : 350;
-    const stageLinks = Object.keys(stages).map((stageName) => {
+    const stageLinks = stages.map((stage) => {
+      const { name } = stage;
       return (
         <div>
-          <button onClick={loadStage.bind(null, stageName)}>
-            {stageName}
+          <button onClick={loadStage.bind(null, name)}>
+            {name}
           </button>
         </div>
       );

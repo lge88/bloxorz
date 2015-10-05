@@ -12,7 +12,7 @@ let state = {
   },
 
   floor: {
-    thickness: 0.03,
+    thickness: 0.01,
   },
 
   lights: {
@@ -101,8 +101,9 @@ function createWorld(state) {
   return [ world, handle ];
 }
 
-function loadStage(level) {
-  const url = stages[level];
+function loadStage(name) {
+  const stage = stages.findByName(name);
+  const url = (stage && stage.url) || null;
   fetch(url)
     .then((res) => {
       return res.json();

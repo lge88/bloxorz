@@ -9,7 +9,7 @@ const GameStats = React.createClass({
     const { stageName } = this.props;
     return (
       <div style={GameStats.styles}>
-        {`stage: ${stageName}`}
+        {`Stage: ${stageName}`}
       </div>
     );
   }
