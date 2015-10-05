@@ -2,7 +2,7 @@ import React, { PropTypes, Component } from 'react';
 import { Mesh } from 'react-three';
 import { BoxGeometry, MeshPhongMaterial, ImageUtils } from 'three';
 import { FlatShading, Vector3 } from 'three';
-import BrickImage from '../images/brick.jpeg';
+import BrickImage from '../../images/brick.jpeg';
 
 const texture = ImageUtils.loadTexture(BrickImage);
 const material = new MeshPhongMaterial({

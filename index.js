@@ -1,7 +1,7 @@
 import React from 'react';
-import GameContainer from './components/GameContainer';
+import Game from './components/Game';
 
 window.game = React.render(
-  <GameContainer />,
+  <Game />,
   document.getElementById('root')
 );

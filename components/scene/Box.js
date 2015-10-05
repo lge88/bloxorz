@@ -2,7 +2,7 @@ import React, { PropTypes, Component } from 'react';
 import { Object3D, Mesh } from 'react-three';
 import { BoxGeometry, MeshPhongMaterial, ImageUtils } from 'three';
 import { FlatShading } from 'three';
-import WoodImage from '../images/wood.jpeg';
+import WoodImage from '../../images/wood.jpeg';
 import AxisHelper from './AxisHelper';
 
 const texture = ImageUtils.loadTexture(WoodImage);

@@ -9,8 +9,9 @@
     "y": 0
   },
   "tiles": [
-    { "x": 0, "y": -1, "type": "RoundSwitch" },
     { "x": 0, "y": 0, "type": "Normal" },
-    { "x": 0, "y": 1, "type": "CrossSwitch" }
+    { "x": 0, "y": -1, "type": "Fragile" },
+    { "x": 0, "y": -2, "type": "Fragile" },
+    { "x": 0, "y": -3, "type": "Fragile" }
   ]
 }

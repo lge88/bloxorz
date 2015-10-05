@@ -1,10 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 import { Scene } from 'react-three';
 import { Vector3, Quaternion } from 'three';
-import Lights from './Lights';
-import Camera from './Camera';
-import Box from './Box';
-import Floor from './Floor';
+import Lights from './scene/Lights';
+import Camera from './scene/Camera';
+import Box from './scene/Box';
+import Floor from './scene/Floor';
 
 const SCENE_BACKGROUND_COLOR = 0x999999;
 const CAMERA_NAME = 'main';

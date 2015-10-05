@@ -1,8 +1,9 @@
 import React from 'react';
-import GameScene from './GameScene';
-import GameGUI from './GameGUI';
 import * as store from '../store';
 import stages from '../stages';
+
+import GameScene from './GameScene';
+import GameGUI from './GameGUI';
 
 const KEY_MAP = {
   37: 'ROLL:BACKWARD',
@@ -12,7 +13,7 @@ const KEY_MAP = {
   32: 'TOGGLE_PAUSE_RESUME:',
 };
 
-const GameContainer = React.createClass({
+const Game = React.createClass({
   getInitialState() {
     return store.getState();
   },
@@ -22,7 +23,7 @@ const GameContainer = React.createClass({
     window.addEventListener('keydown', this._onKeyDown, false);
     store.addChangeListener(this._onStoreChange);
 
-    this._loadStage('Level 0');
+    this._loadStage('Tiles');
   },
 
   componentWillUnmount() {
@@ -46,6 +47,7 @@ const GameContainer = React.createClass({
 
     const [ commandName, ...params ] = command.split(':');
     console.log('command: ', commandName, ...params);
+
     event.preventDefault();
 
     if (commandName === 'ROLL') {
@@ -98,13 +100,11 @@ const GameContainer = React.createClass({
   render() {
     return (
       <div>
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
-          <GameGUI {...this._getGameGUIProps()} />
-        </div>
+        <GameGUI {...this._getGameGUIProps()} />
         <GameScene {...this._getGameSceneProps()} />
       </div>
     );
   }
 });
 
-export default GameContainer;
+export default Game;
