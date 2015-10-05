@@ -9,7 +9,7 @@ const GameGUI = React.createClass({
     currentStage: PropTypes.object,
     paused: PropTypes.bool.isRequired,
     togglePauseResume: PropTypes.func.isRequired,
-    stages: PropTypes.object.isRequired,
+    stages: PropTypes.array.isRequired,
     loadStage: PropTypes.func.isRequired,
   },
 

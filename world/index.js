@@ -20,6 +20,7 @@ export function createWorld({
   goal,
   gridSize,
   boxOptions,
+  floorOptions,
   tiles,
 }) {
   const { nx, ny, nz, position: boxPosition } = boxOptions;
@@ -46,10 +47,14 @@ export function createWorld({
   const floor = createFloor({
     goal,
     width: gridSize,
+    thickness: floorOptions.thickness,
     tiles,
   });
 
   const { world, box, plane } = initPhysicalWorld();
+  const bodies = {
+    box,
+  };
 
   function initPhysicalWorld() {
     const world = createCannonWorld();
@@ -95,11 +100,11 @@ export function createWorld({
   }
 
   const shouldWin = () => {
-    return box.position.z < -0.3;
+    return box.position.z < -0.5;
   };
 
   const shouldLose = () => {
-    return box.position.z < -0.3;
+    return box.position.z < -0.5;
   };
 
   const setupRollingState = (direction) => {
@@ -175,21 +180,34 @@ export function createWorld({
         rolling.currentBox = rolling.nextBox;
         setBoxToSteadyState();
 
-        const rect = rolling.currentBox.getBox2OnXY();
-        if (floor.shouldFallToGoal(rect)) {
+        if (floor.shouldFallInHole(rolling.currentBox)) {
           // Remove infinite plane so the box will free fall.
           world.removeBody(plane);
 
           box.type = Body.DYNAMIC;
           state = STATE.FALLING_IN_HOLE;
-        } else if (floor.shouldFallOffEdge(rect)) {
-          // Replace infinite plane with bricks under the box.
+        } else if (floor.shouldFallOffEdge(rolling.currentBox)) {
+          // Replace infinite plane with static bricks under the box.
           world.removeBody(plane);
-          const bricks = floor.getPhysicalBricksUnderBox(rect);
-          bricks.forEach((brick) => world.addBody(brick));
+          const bricks = floor.getPhysicalBricksUnderBox(rolling.currentBox);
+          bricks.forEach((brick) => {
+            world.addBody(brick);
+            bodies[brick._key] = brick;
+          });
 
           box.type = Body.DYNAMIC;
           state = STATE.FALLING_OFF_EDGE;
+        } else if (floor.shouldBreakFragileTile(rolling.currentBox)) {
+          // Replace infinite plane with falling bricks under the box.
+          world.removeBody(plane);
+          const bricks = floor.getPhysicalFragileBricksUnderBox(rolling.currentBox);
+          bricks.forEach((brick) => {
+            world.addBody(brick);
+            bodies[brick._key] = brick;
+          });
+
+          box.type = Body.DYNAMIC;
+          state = STATE.FALLING_WITH_FRAGILE_TILE;
         } else {
           box.type = Body.STATIC;
           state = STATE.STEADY;
@@ -209,6 +227,7 @@ export function createWorld({
       break;
 
     case STATE.FALLING_OFF_EDGE:
+    case STATE.FALLING_WITH_FRAGILE_TILE:
       world.step(dt);
       if (shouldLose()) { state = STATE.LOST; }
       break;
@@ -220,19 +239,10 @@ export function createWorld({
     }
   };
 
-  const getBoxBodyState = () => {
-    return {
-      position: box.position,
-      quaternion: box.quaternion,
-    };
-  };
-
   const getState = () => {
     return {
       state,
-      bodies: {
-        box: getBoxBodyState(),
-      },
+      bodies,
     };
   };
 
@@ -245,7 +255,6 @@ export function createWorld({
   };
 
   return {
-    getBoxBodyState,
     getState,
     roll,
     update,

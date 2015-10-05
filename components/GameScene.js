@@ -96,11 +96,20 @@ export default class GameScene extends Component {
   _getFloorProps() {
     const { gridSize } = this.props;
     const { thickness } = this.props.floor;
-    const { tiles } = this.props.world;
+    const { tiles, bodies } = this.props.world;
+    const dynamicTiles = Object.keys(bodies)
+            .filter((key) => /tile_/.test(key))
+            .reduce((dict, key) => {
+              const body = bodies[key];
+              dict[key] = body;
+              return dict;
+            }, {});
+
     return {
       width: gridSize,
       thickness,
       tiles,
+      dynamicTiles,
     };
   }
 

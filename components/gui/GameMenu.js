@@ -13,7 +13,7 @@ const GameMenu = React.createClass({
     const stageLinks = stages.map((stage) => {
       const { name } = stage;
       return (
-        <div>
+        <div key={name}>
           <button onClick={loadStage.bind(null, name)}>
             {name}
           </button>

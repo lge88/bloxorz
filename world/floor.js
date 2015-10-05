@@ -1,36 +1,24 @@
-import { Box2, Vector2 } from 'three';
 import { Body, Box, Vec3, Material } from 'cannon';
-const { round } = Math;
+const { round, random } = Math;
+
+function tileKeyAtLocation({ x, y }) {
+  return `tile_${x}_${y}`;
+}
 
 export function createFloor({
   goal,
   width,
+  thickness,
   tiles,
 }) {
-  const goalXYInWorld = xyToWorldFrame(goal);
-  const hole = new Box2(new Vector2(
-    goalXYInWorld.x - 0.5 * width,
-    goalXYInWorld.y - 0.5 * width
-  ), new Vector2(
-    goalXYInWorld.x + 0.5 * width,
-    goalXYInWorld.y + 0.5 * width
-  ));
-
-  // expand a little to eliminate numeric error.
-  hole.expandByVector(new Vector2(0.01 * width, 0.01 * width));
-
   const tileLUT = createTilesLUT(tiles);
 
   function createTilesLUT(tiles) {
     return tiles.reduce((lut, tile) => {
-      const key = tileKeyFromLocation({ x: tile.x, y: tile.y });
+      const key = tileKeyAtLocation({ x: tile.x, y: tile.y });
       lut[key] = tile;
       return lut;
     }, {});
-  }
-
-  function tileKeyFromLocation({ x, y }) {
-    return `${x},${y}`;
   }
 
   function xyToLocalFrame({ x, y }) {
@@ -42,7 +30,7 @@ export function createFloor({
   }
 
   function getTileAtLocation({ x, y }) {
-    const key = tileKeyFromLocation({ x, y });
+    const key = tileKeyAtLocation({ x, y });
     const tile = tileLUT[key];
     if (typeof tile === 'undefined') {
       return null;
@@ -54,8 +42,9 @@ export function createFloor({
   // [ [{x: 0, y: 0}], [{x: 1, y: 0}] ]
   // block[1][0] => {x: 1, y: 0}
   // Can only return a list of length 1 or 2.
-  function getBlockUnderRect(box2) {
-    const { min, max } = box2;
+  function getBlockUnderBox(box) {
+    const rect = box.getBox2OnXY();
+    const { min, max } = rect;
 
     const locationMin = xyToLocalFrame({
       x: min.x + 0.5 * width,
@@ -82,16 +71,17 @@ export function createFloor({
     return block;
   }
 
-  function shouldFallToGoal(box2) {
-    const block = getBlockUnderRect(box2);
+  function shouldFallInHole(box) {
+    const block = getBlockUnderBox(box);
     return block.length === 1 && block[0].length === 1 &&
+      getTileAtLocation(block[0][0]) === null &&
       block[0][0].x === goal.x && block[0][0].y === goal.y;
-    // return hole.containsBox(box2);
   }
 
   // Only works for 1x1xn (n=1,2) types of boxes.
-  function shouldFallOffEdge(box2) {
-    const { min, max } = box2;
+  function shouldFallOffEdge(box) {
+    const rect = box.getBox2OnXY();
+    const { min, max } = rect;
 
     const locationMin = xyToLocalFrame({
       x: min.x + 0.5 * width,
@@ -149,30 +139,19 @@ export function createFloor({
     throw new Error(`Cannot handle the case nx=${nx}, ny=${ny} :(`);
   }
 
-  // Returns 0 if no box, otherwise the height (integer) of box.
-  function getPressureAtLocation({ x, y }) {
+  function shouldBreakFragileTile(box) {
+    const block = getBlockUnderBox(box);
 
+    if (block.length !== 1 || block[0].length !== 1) { return false; }
+
+    const tile = getTileAtLocation(block[0][0]);
+    return tile.type === 'Fragile';
   }
 
-  // function getPhysicalBricks() {
-  //   const bricks = [];
-  //   const hfT = 0.1;
-  //   tiles.forEach((tile) => {
-  //     const pos = xyToWorldFrame({ x: tile.x, y: tile.y });
-  //     const brick = new Body({ mass: 0 });
-  //     const shape = new Box(new Vec3(0.5 * width, 0.5 * width, hfT));
-  //     brick.position.set(pos.x, pos.y, -hfT);
-  //     brick.addShape(shape);
-  //     bricks.push(brick);
-  //   });
-  //   return bricks;
-  // }
-
-  function getPhysicalBricksUnderBox(box2) {
-    // debugger;
-    const block = getBlockUnderRect(box2);
+  function getPhysicalBricksUnderBox(box) {
+    const block = getBlockUnderBox(box);
     const bricks = [];
-    const hfT = 0.05;
+    const hfT = 0.5 * thickness;
     const hfW = 0.5 * width;
     const shrink = 0.9;
     const material = new Material({
@@ -192,6 +171,44 @@ export function createFloor({
         const shape = new Box(new Vec3(shrink * hfW, shrink * hfW, hfT));
         brick.position.set(pos.x, pos.y, -hfT);
         brick.addShape(shape);
+        brick._key = tileKeyAtLocation(xy);
+        bricks.push(brick);
+      });
+    });
+    return bricks;
+  }
+
+  function getPhysicalFragileBricksUnderBox(box) {
+    // debugger;
+    const block = getBlockUnderBox(box);
+    const bricks = [];
+    const hfT = 0.05;
+    const hfW = 0.5 * width;
+    const shrink = 0.9;
+    const material = new Material({
+      friction: 0,
+      restitution: 0,
+    });
+
+    block.forEach((row) => {
+      row.forEach((xy) => {
+        if (getTileAtLocation(xy) === null) { return; }
+
+        const pos = xyToWorldFrame({ x: xy.x, y: xy.y });
+        const brick = new Body({ mass: 5 });
+        brick.material = material;
+
+        // Shrink the brick a little bit to make it fall.
+        const shape = new Box(new Vec3(shrink * hfW, shrink * hfW, hfT));
+        brick.position.set(pos.x, pos.y, -2 * hfT);
+
+        let randomAngularVelocity = new Vec3(random(), random(), random());
+        randomAngularVelocity.normalize();
+        randomAngularVelocity = randomAngularVelocity.scale(10);
+
+        brick.angularVelocity.copy(randomAngularVelocity);
+        brick.addShape(shape);
+        brick._key = tileKeyAtLocation(xy);
         bricks.push(brick);
       });
     });
@@ -199,10 +216,10 @@ export function createFloor({
   }
 
   return {
-    shouldFallToGoal,
+    shouldFallInHole,
     shouldFallOffEdge,
-    // getBlockUnderRect,
+    shouldBreakFragileTile,
     getPhysicalBricksUnderBox,
-    // getPhysicalBricks,
+    getPhysicalFragileBricksUnderBox,
   };
 }

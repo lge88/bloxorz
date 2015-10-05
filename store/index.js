@@ -1,5 +1,6 @@
 import loop from '../lib/loop';
 import stages from '../stages';
+import { createEmitter } from '../lib/emitter';
 import { createWorld as createWorld_ } from '../world';
 
 let state = {
@@ -20,7 +21,7 @@ let state = {
   },
 
   camera: {
-    position: { x: 2, y: -5, z: 5 },
+    position: { x: -2, y: -5, z: 5 },
   },
 
   viewPort: {
@@ -54,12 +55,11 @@ let state = {
 
 };
 
-const listeners = [];
 
 let world = null;
 let handle = null;
 function createWorld(state) {
-  const { gridSize, box } = state;
+  const { gridSize, box, floor } = state;
   const { goal, tiles } = state.world;
   const { dimension, initialHeight } = box;
 
@@ -72,6 +72,9 @@ function createWorld(state) {
       ny: dimension.y,
       nz: dimension.z,
       position: { x: 0, y: 0, z: initialHeight },
+    },
+    floorOptions: {
+      thickness: floor.thickness,
     },
   });
 
@@ -129,17 +132,18 @@ export function getState() {
   return state;
 }
 
+const emitter = createEmitter();
+
 export function addChangeListener(cb) {
-  listeners.push(cb);
+  emitter.addChangeListener(cb);
 }
 
 export function removeChangeListener(cb) {
-  const i = listeners.indexOf(cb);
-  if (i > -1) listeners.splice(i, 1);
+  emitter.removeChangeListener(cb);
 }
 
 export function emitChange() {
-  listeners.forEach((cb) => { cb(); });
+  emitter.emitChange();
 }
 
 export function dispatch(action) {
