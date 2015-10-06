@@ -4,6 +4,7 @@ import { Vector3, Quaternion } from 'three';
 import Brick from './Brick';
 import OrangeBrick from './OrangeBrick';
 import RoundSwitch from './RoundSwitch';
+import CrossSwitch from './CrossSwitch';
 
 const SHRINK = 0.99;
 
@@ -50,6 +51,8 @@ export default class Floor extends Component {
         return <OrangeBrick {...brickProps} />;
       } else if (type === 'RoundSwitch') {
         return <RoundSwitch {...brickProps} />;
+      } else if (type === 'CrossSwitch') {
+        return <CrossSwitch {...brickProps} />;
       }
 
       return <Brick {...brickProps} />;

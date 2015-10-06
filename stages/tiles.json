@@ -19,11 +19,11 @@
     { "x": 1, "y": -2, "type": "Fragile" },
     { "x": 1, "y": -3, "type": "Fragile" },
 
-    { "x": -1, "y": -1, "type": "RoundSwitch" },
+    { "x": -1, "y": -1, "type": "Normal" },
     { "x": -1, "y": -2, "type": "RoundSwitch" },
     { "x": -1, "y": -3, "type": "RoundSwitch" },
 
-    { "x": -2, "y": -1, "type": "CrossSwitch" },
+    { "x": -2, "y": -1, "type": "Normal" },
     { "x": -2, "y": -2, "type": "CrossSwitch" },
     { "x": -2, "y": -3, "type": "CrossSwitch" }
   ]
