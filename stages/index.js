@@ -5,8 +5,8 @@ const data = [
 
 // Debugging stages:
 data.push({
-  name: 'Tiles',
-  url: require('./tiles.json'),
+  name: 'Debug',
+  url: require('./debug.json'),
 });
 
 function findByName(name) {

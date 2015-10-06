@@ -23,7 +23,7 @@ const Game = React.createClass({
     window.addEventListener('keydown', this._onKeyDown, false);
     store.addChangeListener(this._onStoreChange);
 
-    this._loadStage('Tiles');
+    this._loadStage('Debug');
   },
 
   componentWillUnmount() {

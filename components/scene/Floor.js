@@ -5,6 +5,7 @@ import Brick from './Brick';
 import OrangeBrick from './OrangeBrick';
 import RoundSwitch from './RoundSwitch';
 import CrossSwitch from './CrossSwitch';
+import Gate from './Gate';
 
 const SHRINK = 0.99;
 
@@ -53,6 +54,8 @@ export default class Floor extends Component {
         return <RoundSwitch {...brickProps} />;
       } else if (type === 'CrossSwitch') {
         return <CrossSwitch {...brickProps} />;
+      } else if (type === 'Gate') {
+        return <Gate {...brickProps} />;
       }
 
       return <Brick {...brickProps} />;
