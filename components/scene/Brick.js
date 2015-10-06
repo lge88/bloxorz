@@ -12,7 +12,7 @@ const material = new MeshPhongMaterial({
 
 const geometry = new BoxGeometry(1, 1, 1);
 
-export default class Box extends Component {
+export default class Brick extends Component {
   static propTypes = {
     width: PropTypes.number.isRequired,
     thickness: PropTypes.number.isRequired,

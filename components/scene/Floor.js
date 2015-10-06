@@ -3,6 +3,7 @@ import { Object3D } from 'react-three';
 import { Vector3, Quaternion } from 'three';
 import Brick from './Brick';
 import OrangeBrick from './OrangeBrick';
+import RoundSwitch from './RoundSwitch';
 
 const SHRINK = 0.99;
 
@@ -47,6 +48,8 @@ export default class Floor extends Component {
         return <Brick {...brickProps} />;
       } else if (type === 'Fragile') {
         return <OrangeBrick {...brickProps} />;
+      } else if (type === 'RoundSwitch') {
+        return <RoundSwitch {...brickProps} />;
       }
 
       return <Brick {...brickProps} />;
