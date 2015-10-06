@@ -13,7 +13,7 @@ let state = {
   },
 
   floor: {
-    thickness: 0.01,
+    thickness: 0.015,
   },
 
   lights: {
@@ -21,7 +21,7 @@ let state = {
   },
 
   camera: {
-    position: { x: -2, y: -5, z: 5 },
+    position: { x: -1, y: -5, z: 3 },
   },
 
   viewPort: {
@@ -88,14 +88,18 @@ function createWorld(state) {
       state: worldState,
     });
 
+    const currentStage = state.world.stage.name;
     if (worldState.state === 'WON') {
       handle.remove();
-      alert('You win!');
       dispatch({ type: 'PAUSE' });
+      alert('You win!');
+      const nextStage = stages.getNextStage(currentStage);
+      dispatch({ type: 'LOAD_STAGE', name: nextStage });
     } else if (worldState.state === 'LOST') {
       handle.remove();
-      alert('You lost!');
       dispatch({ type: 'PAUSE' });
+      alert('You lost!');
+      dispatch({ type: 'LOAD_STAGE', name: currentStage });
     }
   }
 
@@ -121,6 +125,7 @@ function loadStage(name) {
 
       Object.assign(state.world.stage, { url, name });
       Object.assign(state.world, { goal, tiles });
+      state.paused = false;
       [ world, handle ] = createWorld(state);
     })
     .catch((err) => {

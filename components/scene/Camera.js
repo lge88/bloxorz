@@ -37,7 +37,7 @@ export default class Camera extends Component {
     return (
       <PerspectiveCamera
         name = {name}
-        fov = {10}
+        fov = {15}
         aspect = {aspect}
         near = {0.001}
         far = {1000}

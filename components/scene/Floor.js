@@ -4,7 +4,7 @@ import { Vector3, Quaternion } from 'three';
 import Brick from './Brick';
 import OrangeBrick from './OrangeBrick';
 
-const SHRINK = 0.95;
+const SHRINK = 0.99;
 
 function tileKeyAtLocation({ x, y }) {
   return `tile_${x}_${y}`;
