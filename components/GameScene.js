@@ -60,12 +60,13 @@ export default class GameScene extends Component {
   }
 
   _getCameraProps() {
-    const { width, height } = this.props.viewPort;
-    const { position } = this.props.camera;
+    const { gridSize, viewPort, world } = this.props;
+    const tiles = world.tiles || [];
     return {
       name: CAMERA_NAME,
-      position,
-      aspect: width / height,
+      gridSize,
+      viewPort,
+      tiles,
     };
   }
 
