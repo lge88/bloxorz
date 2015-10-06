@@ -33,9 +33,26 @@
       "enabled": false,
       "singleUse": false,
       "switches": [
-        { "x": -1, "y": -2 }
+        { "x": -1, "y": -2 },
+        { "x": -1, "y": -3 },
+        { "x": -2, "y": -2 },
+        { "x": -2, "y": -3 }
       ]
-    }
+    },
+    {
+      "x": -4, "y": -1, "type": "Gate",
+      "axis": "Left",
+      "enabled": false,
+      "singleUse": false,
+      "switches": [
+        { "x": -1, "y": -2 },
+        { "x": -1, "y": -3 },
+        { "x": -2, "y": -2 },
+        { "x": -2, "y": -3 }
+      ]
+    },
+
+    { "x": -5, "y": -1, "type": "Normal" }
 
   ]
 }
