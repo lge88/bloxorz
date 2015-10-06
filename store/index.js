@@ -21,8 +21,8 @@ let state = {
   },
 
   camera: {
-    aabbScale: { x: 1.2, y: 1.2, z: 3.0 },
-    direction: { x: -1, y: -5, z: 3 },
+    aabbScale: { x: 1.2, y: 1.2, z: 2.0 },
+    direction: { x: -2, y: -5, z: 3 },
   },
 
   viewPort: {

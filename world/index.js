@@ -69,7 +69,7 @@ export function createWorld({
     const world = new World();
     world.quatNormalizeSkip = 0;
     world.quatNormalizeFast = false;
-    world.gravity.set(0, 0, -10);
+    world.gravity.set(0, 0, -15);
     world.broadphase = new NaiveBroadphase();
     return world;
   }
