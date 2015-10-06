@@ -31,7 +31,12 @@ export default class GameScene extends Component {
     }),
 
     camera: PropTypes.shape({
-      position: PropTypes.shape({
+      aabbScale: PropTypes.shape({
+        x: PropTypes.number.isRequired,
+        y: PropTypes.number.isRequired,
+        z: PropTypes.number.isRequired,
+      }),
+      direction: PropTypes.shape({
         x: PropTypes.number.isRequired,
         y: PropTypes.number.isRequired,
         z: PropTypes.number.isRequired,
@@ -60,13 +65,18 @@ export default class GameScene extends Component {
   }
 
   _getCameraProps() {
-    const { gridSize, viewPort, world } = this.props;
+    const { gridSize, viewPort, world, box, camera } = this.props;
+    const { aabbScale, direction } = camera;
     const tiles = world.tiles || [];
+    const boxHeight = box.dimension.z * gridSize;
     return {
       name: CAMERA_NAME,
       gridSize,
-      viewPort,
       tiles,
+      viewPort,
+      boxHeight,
+      aabbScale,
+      direction,
     };
   }
 

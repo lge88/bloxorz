@@ -182,9 +182,8 @@ export function createFloor({
     // debugger;
     const block = getBlockUnderBox(box);
     const bricks = [];
-    const hfT = 0.05;
+    const hfT = 0.5 * thickness;
     const hfW = 0.5 * width;
-    const shrink = 0.9;
     const material = new Material({
       friction: 0,
       restitution: 0,
@@ -195,20 +194,18 @@ export function createFloor({
         if (getTileAtLocation(xy) === null) { return; }
 
         const pos = xyToWorldFrame({ x: xy.x, y: xy.y });
-        const brick = new Body({ mass: 5 });
-        brick.material = material;
-
-        // Shrink the brick a little bit to make it fall.
-        const shape = new Box(new Vec3(shrink * hfW, shrink * hfW, hfT));
-        brick.position.set(pos.x, pos.y, -2 * hfT);
-
+        const shape = new Box(new Vec3(hfW, hfW, hfT));
         let randomAngularVelocity = new Vec3(random(), random(), random());
         randomAngularVelocity.normalize();
         randomAngularVelocity = randomAngularVelocity.scale(10);
 
+        const brick = new Body({ mass: 5 });
+        brick._key = tileKeyAtLocation(xy);
+        brick.material = material;
+        brick.position.set(pos.x, pos.y, -hfT);
         brick.angularVelocity.copy(randomAngularVelocity);
         brick.addShape(shape);
-        brick._key = tileKeyAtLocation(xy);
+
         bricks.push(brick);
       });
     });

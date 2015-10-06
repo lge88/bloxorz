@@ -1,16 +1,16 @@
-import React, { Component, PropTypes } from 'react';
+import React, { PropTypes } from 'react';
 import { OrthographicCamera } from 'react-three';
-import { Vector3, Vector2, Box2 } from 'three';
-const { min, max } = Math;
+import { Vector3, Vector2, Box3 } from 'three';
+import { OrthographicCamera as OrthographicCamera_ } from 'three';
+const { min, max, abs } = Math;
 
-const DIRECTION = new Vector3(-1, -5, 3);
-const UP = new Vector3(0, 0, 1);
+const UP = [ 0, 0, 1 ];
 const NEAR = -500;
 const FAR = 1000;
 
-function getAABB(gridSize, tiles) {
-  const _min = { x: Infinity, y: Infinity };
-  const _max = { x: -Infinity, y: -Infinity };
+function getSceneAABB(boxHeight, gridSize, tiles) {
+  const _min = { x: Infinity, y: Infinity, z: -boxHeight };
+  const _max = { x: -Infinity, y: -Infinity, z: boxHeight };
 
   for (let i = 0; i < tiles.length; ++i) {
     const tile = tiles[i];
@@ -20,49 +20,112 @@ function getAABB(gridSize, tiles) {
     _max.y = max((tile.y + 0.5) * gridSize, _max.y);
   }
 
-  return new Box2(new Vector2(_min.x, _min.y), new Vector2(_max.x, _max.y));
+  return new Box3(
+    new Vector3(_min.x, _min.y, _min.z),
+    new Vector3(_max.x, _max.y, _max.z)
+  );
 }
 
-export default class Camera extends Component {
-  static propTypes = {
+function vectorToNDC(
+  aVector,
+  // orthographic camera properties:
+  {
+    position, up, lookat,
+    near, far,
+    left, right, top, bottom,
+  },
+) {
+  const camera = new OrthographicCamera_(left, right, top, bottom, near, far);
+  camera.position.copy(position);
+  camera.up.copy(up);
+  camera.lookAt(lookat);
+
+  // MUST call update matrices manually!
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+
+  const vector = (new Vector3()).copy(aVector);
+  vector.project(camera);
+
+  const ndc = new Vector2(vector.x, vector.y);
+  return ndc;
+}
+
+function getAABBCorners(aabb) {
+  return [
+    // bottom
+    new Vector3(aabb.min.x, aabb.min.y, aabb.min.z),
+    new Vector3(aabb.max.x, aabb.min.y, aabb.min.z),
+    new Vector3(aabb.max.x, aabb.max.y, aabb.min.z),
+    new Vector3(aabb.min.x, aabb.max.y, aabb.min.z),
+
+    // top
+    new Vector3(aabb.min.x, aabb.min.y, aabb.max.z),
+    new Vector3(aabb.max.x, aabb.min.y, aabb.max.z),
+    new Vector3(aabb.max.x, aabb.max.y, aabb.max.z),
+    new Vector3(aabb.min.x, aabb.max.y, aabb.max.z),
+  ];
+}
+
+const Camera = React.createClass({
+  propTypes: {
     name: PropTypes.string.isRequired,
     gridSize: PropTypes.number.isRequired,
     tiles: PropTypes.array.isRequired,
     viewPort: PropTypes.object.isRequired,
-  };
+    boxHeight: PropTypes.number.isRequired,
+    aabbScale: PropTypes.object.isRequired,
+    direction: PropTypes.object.isRequired,
+  },
 
   render() {
-    const { name, gridSize, tiles, viewPort } = this.props;
-    const { width: w, height: h } = viewPort;
+    const { name, gridSize, tiles } = this.props;
+    const { viewPort, boxHeight } = this.props;
 
-    const aabb = getAABB(gridSize, tiles);
+    let { direction, aabbScale } = this.props;
+    direction = (new Vector3()).copy(direction);
+    aabbScale = (new Vector3()).copy(aabbScale);
+
+    const aabb = getSceneAABB(boxHeight, gridSize, tiles);
     const center = aabb.center();
-    const lookat = new Vector3(center.x, center.y, 0);
-    const position = (new Vector3()).addVectors(lookat, DIRECTION);
+    const newSize = (new Vector3()).multiplyVectors(aabb.size(), aabbScale);
+    aabb.setFromCenterAndSize(center, newSize);
 
-    // TODO: s, left, right, top, bottom should be
-    // computed from tiles
-    // For now, it uses some magic numbers to make the scene looks reasonable.
-    // Use a search approach to get proper s.
-    const s = 0.0025;
-    const left = s * w / - 2;
-    const right = s * w / 2;
-    const top = s * h / 2;
-    const bottom = s * h / -2;
+    const corners = getAABBCorners(aabb);
 
-    return (
-      <OrthographicCamera
-        name = {name}
-        left = {left}
-        right = {right}
-        top = {top}
-        bottom = {bottom}
-        near = {NEAR}
-        far = {FAR}
-        position = {position}
-        lookat = {lookat}
-        up = {UP}
-      />
-    );
+    const lookat = center.clone();
+    const position = (new Vector3()).addVectors(center, direction);
+    const up = new Vector3(...UP);
+    const [ near, far ] = [ NEAR, FAR ];
+
+    const { width, height } = viewPort;
+    const [ hfW, hfH ] = [ 0.5 * width, 0.5 * height ];
+    const [ left, right, top, bottom ] = [ -hfW, hfW, hfH, -hfH ];
+
+    const cameraProps = {
+      name,
+      position, up, lookat,
+      near, far,
+      left, right, top, bottom
+    };
+
+    const cornerNDCs = corners.map((corner) => vectorToNDC(corner, cameraProps));
+
+    const maxAbsNDC = cornerNDCs.reduce((sofar, ndc) => {
+      return max(sofar, abs(ndc.x), abs(ndc.y));
+    }, -Infinity);
+
+    const scale = maxAbsNDC;
+
+    Object.assign(cameraProps, {
+      left: left * scale,
+      right: right * scale,
+      top: top * scale,
+      bottom: bottom * scale,
+    });
+
+    return <OrthographicCamera {...cameraProps} />;
   }
-}
+});
+
+export default Camera;
