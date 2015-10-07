@@ -38,12 +38,18 @@ export function createFloor({
       let pivot;
       let axis;
 
-      if (tile.axis === 'Right') {
+      if (tile.axis === 'Forward') {
         pivot = body.pointToWorldFrame(new Vec3(hfW, 0, -hfT));
         axis = new Vec3(0, -1, 0);
-      } else if (tile.axis === 'Left') {
+      } else if (tile.axis === 'Backward') {
         pivot = body.pointToWorldFrame(new Vec3(-hfW, 0, -hfT));
         axis = new Vec3(0, 1, 0);
+      } else if (tile.axis === 'Left') {
+        pivot = body.pointToWorldFrame(new Vec3(0, hfW, -hfT));
+        axis = new Vec3(1, 0, 0);
+      } else if (tile.axis === 'Right') {
+        pivot = body.pointToWorldFrame(new Vec3(0, -hfW, -hfT));
+        axis = new Vec3(-1, 0, 0);
       }
 
       let angle = tile.enabled ? 0 : PI;

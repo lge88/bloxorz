@@ -57,13 +57,13 @@
 
     {
       "x": -3, "y": -1, "type": "Gate",
-      "axis": "Right",
+      "axis": "Forward",
       "enabled": false,
       "singleUse": false
     },
     {
       "x": -4, "y": -1, "type": "Gate",
-      "axis": "Left",
+      "axis": "Backward",
       "enabled": false,
       "singleUse": false
     },
