@@ -52,9 +52,10 @@ export function createWorld({
   });
 
   const { world, box, plane } = initPhysicalWorld();
-  const bodies = {
-    box,
-  };
+
+  const bodies = Object.assign({
+    box
+  }, floor.getBodies());
 
   function initPhysicalWorld() {
     const world = createCannonWorld();
@@ -209,6 +210,8 @@ export function createWorld({
           box.type = Body.DYNAMIC;
           state = STATE.FALLING_WITH_FRAGILE_TILE;
         } else {
+          floor.maybeTriggerSwitch(rolling.currentBox);
+
           box.type = Body.STATIC;
           state = STATE.STEADY;
         }

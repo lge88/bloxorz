@@ -1,5 +1,8 @@
-import { Body, Box, Vec3, Material } from 'cannon';
-const { round, random } = Math;
+import { Body, Box, Vec3, Quaternion, Material } from 'cannon';
+import { rotateBody } from './rotate';
+const { round, random, PI } = Math;
+import loop from '../lib/loop';
+import now from 'performance-now';
 
 function tileKeyAtLocation({ x, y }) {
   return `tile_${x}_${y}`;
@@ -17,8 +20,69 @@ export function createFloor({
     return tiles.reduce((lut, tile) => {
       const key = tileKeyAtLocation({ x: tile.x, y: tile.y });
       lut[key] = tile;
+      tile._state = getInitialTileState(tile);
       return lut;
     }, {});
+  }
+
+  function getInitialTileState(tile) {
+    if (tile.type === 'Gate') {
+      const hfT = 0.5 * thickness;
+      const hfW = 0.5 * width;
+      const xy = xyToWorldFrame({ x: tile.x, y: tile.y });
+
+      const body = new Body();
+      body.position.set(xy.x, xy.y, -hfT);
+      body.quaternion.set(0, 0, 0, 1);
+
+      let pivot;
+      let axis;
+
+      if (tile.axis === 'Right') {
+        pivot = body.pointToWorldFrame(new Vec3(hfW, 0, -hfT));
+        axis = new Vec3(0, -1, 0);
+      } else if (tile.axis === 'Left') {
+        pivot = body.pointToWorldFrame(new Vec3(-hfW, 0, -hfT));
+        axis = new Vec3(0, 1, 0);
+      }
+
+      let angle = tile.enabled ? 0 : PI;
+      const getBodyStateAtRotationAngle = (angle) => {
+        return rotateBody(body, pivot, axis, angle);
+      };
+
+      const { position, quaternion } = getBodyStateAtRotationAngle(angle);
+
+      const easing = (t) => t;
+
+      const toggle = () => {
+        const currentAngle = tile.enabled ? 0 : PI;
+        const targetAngle = PI - currentAngle;
+        const diff = targetAngle - currentAngle;
+        tile.enabled = !(tile.enabled);
+
+        const startedTime = now();
+        const duration = 200;
+        const h = loop.add(() => {
+          const currentTime = now();
+          const t = (currentTime - startedTime) / duration;
+          if (t < 1) {
+            angle = currentAngle + diff * easing(t);
+            Object.assign(state, getBodyStateAtRotationAngle(angle));
+          } else {
+            angle = targetAngle;
+            Object.assign(state, getBodyStateAtRotationAngle(angle));
+            h.remove();
+          }
+        });
+      };
+
+      const _key = tileKeyAtLocation({ x: tile.x, y: tile.y });
+      const state = { _key, toggle, position, quaternion };
+      return state;
+    }
+
+    return null;
   }
 
   function xyToLocalFrame({ x, y }) {
@@ -74,8 +138,14 @@ export function createFloor({
   function shouldFallInHole(box) {
     const block = getBlockUnderBox(box);
     return block.length === 1 && block[0].length === 1 &&
-      getTileAtLocation(block[0][0]) === null &&
+      // getTileAtLocation(block[0][0]) === null &&
       block[0][0].x === goal.x && block[0][0].y === goal.y;
+  }
+
+  function isTileEmpty(xy) {
+    const tile = getTileAtLocation(xy);
+    return tile === null ||
+      (tile.type === 'Gate' && tile.enabled === false);
   }
 
   // Only works for 1x1xn (n=1,2) types of boxes.
@@ -99,8 +169,9 @@ export function createFloor({
     // console.log('nx', nx, 'ny', ny);
     // console.assert(nx === 1 || ny === 1, 'nx or ny must be 1');
 
+
     if (nx === 1 && ny === 1) {
-      return getTileAtLocation({ x: locationMin.x, y: locationMin.y }) === null;
+      return isTileEmpty({ x: locationMin.x, y: locationMin.y });
     } else if (nx === 1 && ny === 2) {
       const [x, y1, y2, y0, y3] = [
         locationMin.x,
@@ -111,10 +182,10 @@ export function createFloor({
       ];
 
       const [ t0, t1, t2, t3 ] = [
-        getTileAtLocation({ x, y: y0 }) === null,
-        getTileAtLocation({ x, y: y1 }) === null,
-        getTileAtLocation({ x, y: y2 }) === null,
-        getTileAtLocation({ x, y: y3 }) === null,
+        isTileEmpty({ x, y: y0 }),
+        isTileEmpty({ x, y: y1 }),
+        isTileEmpty({ x, y: y2 }),
+        isTileEmpty({ x, y: y3 }),
       ];
 
       return (t1 && t2) || (t0 && t1) || (t2 && t3);
@@ -128,10 +199,10 @@ export function createFloor({
       ];
 
       const [ t0, t1, t2, t3 ] = [
-        getTileAtLocation({ x: x0, y }) === null,
-        getTileAtLocation({ x: x1, y }) === null,
-        getTileAtLocation({ x: x2, y }) === null,
-        getTileAtLocation({ x: x3, y }) === null,
+        isTileEmpty({ x: x0, y }),
+        isTileEmpty({ x: x1, y }),
+        isTileEmpty({ x: x2, y }),
+        isTileEmpty({ x: x3, y }),
       ];
       return (t1 && t2) || (t0 && t1) || (t2 && t3);
     }
@@ -148,6 +219,29 @@ export function createFloor({
     return tile.type === 'Fragile';
   }
 
+  function toggleGate(tile) {
+    tile._state.toggle();
+  }
+
+  function maybeTriggerSwitch(box) {
+    const block = getBlockUnderBox(box);
+
+    // TODO: maybe make this more generic?
+    const isTall = block.length === 1 && block[0].length === 1;
+
+    block.forEach((row) => {
+      row.forEach((xy) => {
+        const tile = getTileAtLocation(xy);
+        const shouldTrigger = (tile.type === 'RoundSwitch') ||
+                              (tile.type === 'CrossSwitch' && isTall);
+        if (shouldTrigger) {
+          const gateTiles = tile.gates.map(getTileAtLocation);
+          gateTiles.forEach(toggleGate);
+        }
+      });
+    });
+  }
+
   function getPhysicalBricksUnderBox(box) {
     const block = getBlockUnderBox(box);
     const bricks = [];
@@ -161,7 +255,7 @@ export function createFloor({
 
     block.forEach((row) => {
       row.forEach((xy) => {
-        if (getTileAtLocation(xy) === null) { return; }
+        if (isTileEmpty(xy)) { return; }
 
         const pos = xyToWorldFrame({ x: xy.x, y: xy.y });
         const brick = new Body({ mass: 0 });
@@ -191,7 +285,8 @@ export function createFloor({
 
     block.forEach((row) => {
       row.forEach((xy) => {
-        if (getTileAtLocation(xy) === null) { return; }
+        const tile = getTileAtLocation(xy);
+        if (tile.type !== 'Fragile') { return; }
 
         const pos = xyToWorldFrame({ x: xy.x, y: xy.y });
         const shape = new Box(new Vec3(hfW, hfW, hfT));
@@ -212,10 +307,50 @@ export function createFloor({
     return bricks;
   }
 
+  function getGateSteadyBodyState(gate) {
+    return gate._state;
+
+    const hfT = 0.5 * thickness;
+    const hfW = 0.5 * width;
+    const xy = xyToWorldFrame({ x: gate.x, y: gate.y });
+
+    const body = new Body();
+    body.position.set(xy.x, xy.y, -hfT);
+    body.quaternion.set(0, 0, 0, 1);
+
+    let pivot;
+    let axis;
+
+    if (gate.axis === 'Right') {
+      pivot = body.pointToWorldFrame(new Vec3(hfW, 0, -hfT));
+      axis = new Vec3(0, -1, 0);
+    } else if (gate.axis === 'Left') {
+      pivot = body.pointToWorldFrame(new Vec3(-hfW, 0, -hfT));
+      axis = new Vec3(0, 1, 0);
+    }
+
+    const { position, quaternion } = rotateBody(body, pivot, axis, PI);
+    const _key = tileKeyAtLocation({ x: gate.x, y: gate.y });
+
+    return { position, quaternion, _key };
+  }
+
+  function getBodies() {
+    return tiles
+      .filter((tile) => tile.type === 'Gate')
+      .map((tile) => getGateSteadyBodyState(tile))
+      .reduce((dict, body) => {
+        dict[body._key] = body;
+        return dict;
+      }, {});
+  }
+
   return {
     shouldFallInHole,
     shouldFallOffEdge,
     shouldBreakFragileTile,
+    maybeTriggerSwitch,
+    getBodies,
     getPhysicalBricksUnderBox,
     getPhysicalFragileBricksUnderBox,
   };
