@@ -113,38 +113,13 @@ export function createFloor({
   // block[1][0] => {x: 1, y: 0}
   // Can only return a list of length 1 or 2.
   function getBlockUnderBox(box) {
-    const rect = box.getBox2OnXY();
-    const { min, max } = rect;
-
-    const locationMin = xyToLocalFrame({
-      x: min.x + 0.5 * width,
-      y: min.y + 0.5 * width,
-    });
-
-    const locationMax = xyToLocalFrame({
-      x: max.x - 0.5 * width,
-      y: max.y - 0.5 * width,
-    });
-
-    const [ x1, y1 ] = [ locationMin.x, locationMin.y ];
-    const [ x2, y2 ] = [ locationMax.x, locationMax.y ];
-
-    const block = [];
-    for (let x = x1; x <= x2; ++x) {
-      const column = [];
-      for (let y = y1; y <= y2; ++y) {
-        const tile = { x, y };
-        column.push(tile);
-      }
-      block.push(column);
-    }
+    const block = box.blockUnder;
+    console.log('block', block);
     return block;
   }
 
-  function shouldFallInHole(box) {
-    const block = getBlockUnderBox(box);
+  function shouldFallInHole(block) {
     return block.length === 1 && block[0].length === 1 &&
-      // getTileAtLocation(block[0][0]) === null &&
       block[0][0].x === goal.x && block[0][0].y === goal.y;
   }
 
@@ -154,27 +129,12 @@ export function createFloor({
       (tile.type === 'Gate' && tile.enabled === false);
   }
 
-  // Only works for 1x1xn (n=1,2) types of boxes.
-  function shouldFallOffEdge(box) {
-    const rect = box.getBox2OnXY();
-    const { min, max } = rect;
-
-    const locationMin = xyToLocalFrame({
-      x: min.x + 0.5 * width,
-      y: min.y + 0.5 * width,
-    });
-
-    const locationMax = xyToLocalFrame({
-      x: max.x - 0.5 * width,
-      y: max.y - 0.5 * width,
-    });
-
-    const nx = (locationMax.x - locationMin.x + 1);
-    const ny = (locationMax.y - locationMin.y + 1);
-
-    // console.log('nx', nx, 'ny', ny);
-    // console.assert(nx === 1 || ny === 1, 'nx or ny must be 1');
-
+  // Currently only works for 1x1xn (n=1,2) types of boxes.
+  function shouldFallOffEdge(block) {
+    const nx = block.length;
+    const ny = block[0].length;
+    const locationMin = block[0][0];
+    const locationMax = block[nx - 1][ny - 1];
 
     if (nx === 1 && ny === 1) {
       return isTileEmpty({ x: locationMin.x, y: locationMin.y });
@@ -216,9 +176,26 @@ export function createFloor({
     throw new Error(`Cannot handle the case nx=${nx}, ny=${ny} :(`);
   }
 
-  function shouldBreakFragileTile(box) {
-    const block = getBlockUnderBox(box);
+  //
+  function maybeBreakFragileTiles(block) {
+    let happened = false;
+    const bodies = [];
 
+    block.forEach((row) => {
+      row.forEach((xy) => {
+        const tile = getTileAtLocation(xy);
+        if (tile.type !== 'Fragile') { return; }
+
+        // check if the tile will be broken
+        // if it does, set dynamic bodies so that it could be
+        // simulated.
+      });
+    });
+
+    return { happened, bodies };
+  }
+
+  function shouldBreakFragileTile(block) {
     if (block.length !== 1 || block[0].length !== 1) { return false; }
 
     const tile = getTileAtLocation(block[0][0]);
@@ -229,27 +206,33 @@ export function createFloor({
     tile._state.toggle();
   }
 
-  function maybeTriggerSwitch(box) {
-    const block = getBlockUnderBox(box);
+  function maybeTriggerSwitch(block) {
+    let happened = false;
 
     // TODO: maybe make this more generic?
     const isTall = block.length === 1 && block[0].length === 1;
 
+    // TODO: how to handle the case when a block press two round switches
+    // at the same time? Should it toggle the gate twice?
     block.forEach((row) => {
       row.forEach((xy) => {
         const tile = getTileAtLocation(xy);
-        const shouldTrigger = (tile.type === 'RoundSwitch') ||
-                              (tile.type === 'CrossSwitch' && isTall);
+        const shouldTrigger = (tile !== null) &&
+                ((tile.type === 'RoundSwitch') ||
+                 (tile.type === 'CrossSwitch' && isTall));
         if (shouldTrigger) {
+          happened = true;
           const gateTiles = tile.gates.map(getTileAtLocation);
           gateTiles.forEach(toggleGate);
         }
       });
     });
+
+    return { happened };
   }
 
-  function getPhysicalBricksUnderBox(box) {
-    const block = getBlockUnderBox(box);
+  function getPhysicalBricksUnderBox(block) {
+    // const block = getBlockUnderBox(box);
     const bricks = [];
     const hfT = 0.5 * thickness;
     const hfW = 0.5 * width;
@@ -278,9 +261,9 @@ export function createFloor({
     return bricks;
   }
 
-  function getPhysicalFragileBricksUnderBox(box) {
+  function getPhysicalFragileBricksUnderBox(block) {
     // debugger;
-    const block = getBlockUnderBox(box);
+    // const block = getBlockUnderBox(box);
     const bricks = [];
     const hfT = 0.5 * thickness;
     const hfW = 0.5 * width;
@@ -315,30 +298,6 @@ export function createFloor({
 
   function getGateSteadyBodyState(gate) {
     return gate._state;
-
-    const hfT = 0.5 * thickness;
-    const hfW = 0.5 * width;
-    const xy = xyToWorldFrame({ x: gate.x, y: gate.y });
-
-    const body = new Body();
-    body.position.set(xy.x, xy.y, -hfT);
-    body.quaternion.set(0, 0, 0, 1);
-
-    let pivot;
-    let axis;
-
-    if (gate.axis === 'Right') {
-      pivot = body.pointToWorldFrame(new Vec3(hfW, 0, -hfT));
-      axis = new Vec3(0, -1, 0);
-    } else if (gate.axis === 'Left') {
-      pivot = body.pointToWorldFrame(new Vec3(-hfW, 0, -hfT));
-      axis = new Vec3(0, 1, 0);
-    }
-
-    const { position, quaternion } = rotateBody(body, pivot, axis, PI);
-    const _key = tileKeyAtLocation({ x: gate.x, y: gate.y });
-
-    return { position, quaternion, _key };
   }
 
   function getBodies() {

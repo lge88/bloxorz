@@ -30,10 +30,9 @@ export function createWorld({
   let controlState = CONTROL_STATE.NOOP;
   let rolling = {
     currentBox: createRollingBox({
-      width: nx * gridSize,
-      length: ny * gridSize,
-      height: nz * gridSize,
-      location: { x: [ 0, 0, 0 ], y: [ 0, 0, 0] },
+      unitLength: gridSize,
+      dimension: [ nx, ny, nz ],
+      offset: { x: [ 0, 0, 0 ], y: [ 0, 0, 0] },
       orientation: { x: 'FORWARD', y: 'LEFT' },
     }),
 
@@ -110,8 +109,7 @@ export function createWorld({
 
   const setupRollingState = (direction) => {
     const { currentBox } = rolling;
-    const { pivot, axis } = currentBox.roll(direction);
-    const nextBox = currentBox.rolled(direction);
+    const { nextBox, pivot, axis } = currentBox.roll(direction);
     const startedTime = now();
     Object.assign(rolling, {
       nextBox,
@@ -131,7 +129,7 @@ export function createWorld({
   };
 
   const setBoxToSteadyState = () => {
-    const { position, quaternion } = rolling.currentBox.getSteadyState();
+    const { position, quaternion } = rolling.currentBox.steadyBodyState;
     box.position.copy(position);
     box.quaternion.copy(quaternion);
     box.velocity.setZero();
@@ -140,7 +138,7 @@ export function createWorld({
 
   const rotateBoxBy = (angle) => {
     const { currentBox, pivot, axis } = rolling;
-    const steadyBodyState = currentBox.getSteadyState();
+    const { steadyBodyState } = currentBox;
     const { position, quaternion } = rotateBody(
       steadyBodyState,
       pivot,
@@ -181,16 +179,17 @@ export function createWorld({
         rolling.currentBox = rolling.nextBox;
         setBoxToSteadyState();
 
-        if (floor.shouldFallInHole(rolling.currentBox)) {
+        const blockUnderBox = rolling.currentBox.blockUnder;
+        if (floor.shouldFallInHole(blockUnderBox)) {
           // Remove infinite plane so the box will free fall.
           world.removeBody(plane);
 
           box.type = Body.DYNAMIC;
           state = STATE.FALLING_IN_HOLE;
-        } else if (floor.shouldFallOffEdge(rolling.currentBox)) {
+        } else if (floor.shouldFallOffEdge(blockUnderBox)) {
           // Replace infinite plane with static bricks under the box.
           world.removeBody(plane);
-          const bricks = floor.getPhysicalBricksUnderBox(rolling.currentBox);
+          const bricks = floor.getPhysicalBricksUnderBox(blockUnderBox);
           bricks.forEach((brick) => {
             world.addBody(brick);
             bodies[brick._key] = brick;
@@ -198,10 +197,10 @@ export function createWorld({
 
           box.type = Body.DYNAMIC;
           state = STATE.FALLING_OFF_EDGE;
-        } else if (floor.shouldBreakFragileTile(rolling.currentBox)) {
+        } else if (floor.shouldBreakFragileTile(blockUnderBox)) {
           // Replace infinite plane with falling bricks under the box.
           world.removeBody(plane);
-          const bricks = floor.getPhysicalFragileBricksUnderBox(rolling.currentBox);
+          const bricks = floor.getPhysicalFragileBricksUnderBox(blockUnderBox);
           bricks.forEach((brick) => {
             world.addBody(brick);
             bodies[brick._key] = brick;
@@ -210,7 +209,7 @@ export function createWorld({
           box.type = Body.DYNAMIC;
           state = STATE.FALLING_WITH_FRAGILE_TILE;
         } else {
-          floor.maybeTriggerSwitch(rolling.currentBox);
+          floor.maybeTriggerSwitch(blockUnderBox);
 
           box.type = Body.STATIC;
           state = STATE.STEADY;

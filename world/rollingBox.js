@@ -1,39 +1,71 @@
 import { Body, Vec3 } from 'cannon';
-import { Box2, Vector2 } from 'three';
 import { createDice } from './dice';
 const { PI } = Math;
 
+/**
+ * Creates an immuatable box object describes the rolling behaviour.
+ *     /+------/+ --/
+ *    / |     / |   |
+ *   +--------| |   |
+ *   | /+-----+/|   | nz = 2
+ *   |/ | o   | |   | (number of unit cubes
+ *   +--------+ |   | stacked in z direction)
+ *   | /+-----|-+ --/
+ *   |/       |/
+ *   +--------+
+ *   |--------|
+ *   unitLength = 0.1
+ *   (physical unit length of the box,
+ *   i.e., the box dimension is:
+ *   (nx x unitLength) x (ny * unitLength) x (nz x unitLength) )
+ */
+// TODO: add documentation for `offset' and `orietation'.
 export function createRollingBox({
-  width,
-  length,
-  height,
-  location = { x: [ 0, 0, 0 ], y: [ 0, 0, 0 ] },
+  unitLength,
+  dimension,
+  offset = { x: [ 0, 0, 0 ], y: [ 0, 0, 0 ] },
   orientation = { x: 'FORWARD', y: 'LEFT' },
 }) {
-  const [ hfW, hfL, hfH ] = [ 0.5 * width, 0.5 * length, 0.5 * height ];
+  const hfUnit = 0.5 * unitLength;
+  const [ nx, ny, nz ] = dimension;
+  const [ width, length, height ] = [ nx * unitLength, ny * unitLength, nz * unitLength ];
   const dice = createDice({ orientation });
 
   const body = new Body();
   initPosition(body.position);
   initQuaternion(body.quaternion);
 
-  function initPosition(pos) {
+  function resolveOffset(aOffset) {
+    const [ x1, x2, x3 ] = aOffset.x;
+    const [ y1, y2, y3 ] = aOffset.y;
+    const x = nx * x1 + ny * x2 + nz * x3;
+    const y = nx * y1 + ny * y2 + nz * y3;
+    return { x, y };
+  }
+
+  function getHalfUnitPosition() {
+    const { x, y } = resolveOffset(offset);
     const local = dice.globalToLocal('UP');
     let z;
     if (local === 'FORWARD' || local === 'BACKWARD') {
-      z = hfW;
+      z = nx;
     } else if (local === 'LEFT' || local === 'RIGHT') {
-      z = hfL;
+      z = ny;
     } else if (local === 'UP' || local === 'DOWN') {
-      z = hfH;
+      z = nz;
     } else {
       throw new Error(`Invalid local orientation. ${local}`);
     }
-    const [ x1, x2, x3 ] = location.x;
-    const [ y1, y2, y3 ] = location.y;
-    const x = hfW * x1 + hfL * x2 + hfH * x3;
-    const y = hfW * y1 + hfL * y2 + hfH * y3;
-    Object.assign(pos, { x, y, z});
+    return { x, y, z };
+  }
+
+  function initPosition(pos) {
+    const { x, y, z } = getHalfUnitPosition();
+    Object.assign(pos, {
+      x: x * hfUnit,
+      y: y * hfUnit,
+      z: z * hfUnit,
+    });
   }
 
   function initQuaternion(q) {
@@ -75,40 +107,28 @@ export function createRollingBox({
     q.setFromEuler(...euler);
   }
 
-  function getPosition() {
-    return body.position;
-  }
-
-  function getQuaternion() {
-    return body.quaternion;
-  }
-
-  function getSteadyState() {
-    return {
-      position: getPosition(),
-      quaternion: getQuaternion(),
-    };
-  }
-
-  function getNextLocation(direction) {
+  function getNextOffset(direction) {
     let xOrY;
-    let offset;
+    let increment;
     if (direction === 'FORWARD') {
-      [ xOrY, offset ] = [ 'x', 1 ];
+      [ xOrY, increment ] = [ 'x', 1 ];
     } else if (direction === 'BACKWARD') {
-      [ xOrY, offset ] = [ 'x', -1 ];
+      [ xOrY, increment ] = [ 'x', -1 ];
     } else if (direction === 'LEFT') {
-      [ xOrY, offset ] = [ 'y', 1 ];
+      [ xOrY, increment ] = [ 'y', 1 ];
     } else if (direction === 'RIGHT') {
-      [ xOrY, offset ] = [ 'y', -1 ];
+      [ xOrY, increment ] = [ 'y', -1 ];
     } else {
       throw new Error(`Invalid direction ${direction}.`);
     }
 
-    let nextLocation = getLocation();
+    let nextOffset = {
+      x: [ ...offset.x ],
+      y: [ ...offset.y ],
+    };
 
     ['UP', direction].forEach((dir) => {
-      let local = dice.globalToLocal(dir);
+      const local = dice.globalToLocal(dir);
       let dim;
       if (local === 'FORWARD' || local === 'BACKWARD') {
         dim = 0;
@@ -119,14 +139,16 @@ export function createRollingBox({
       } else {
         throw new Error(`Invalid local orientation. ${local}`);
       }
-      nextLocation[xOrY][dim] += offset;
+      nextOffset[xOrY][dim] += increment;
     });
 
-    return nextLocation;
+    return nextOffset;
   }
 
-  function rolled(direction) {
-    const nextLocation = getNextLocation(direction);
+  // Returns { nextBox, pivot, axis }
+  // pivot and axis is in world frame.
+  function roll(direction) {
+    const nextOffset = getNextOffset(direction);
 
     const { newDice } = dice.roll(direction);
     const nextOrientation = {
@@ -134,23 +156,13 @@ export function createRollingBox({
       y: newDice.localToGlobal('LEFT'),
     };
 
-    return createRollingBox({
-      width,
-      length,
-      height,
-      location: nextLocation,
+    const nextBox = createRollingBox({
+      unitLength,
+      dimension,
+      offset: nextOffset,
       orientation: nextOrientation,
     });
-  }
 
-  // This method could be optimized by caching.
-  // Returns the interpolated state of rolling.
-  // direction in {FORWARD,BACKWARD,LEFT,RIGHT}
-  // t in [0, 1]
-  // returns { position, quaternion }
-  // getSteadyState() === roll(direction, 0)
-  // rolled(direction).getSteadyState() === roll(direction, 1)
-  function roll(direction) {
     const dims = [ width, length, height ];
     let { axis, pivot } = dice.roll(direction);
 
@@ -161,57 +173,82 @@ export function createRollingBox({
     axis = new Vec3(...axis);
     axis = body.vectorToWorldFrame(axis);
 
-    return { pivot, axis };
+    return { nextBox, pivot, axis };
   }
 
-  function getLocation() {
-    return {
-      x: [ ...location.x ],
-      y: [ ...location.y ]
-    };
-  }
+  // Returns a 2d array of unit coordinates and height
+  // that describes the area under the box.
+  // h is the number of unit cubes stacked in z direction.
+  // Example:
+  //   1) [ [{x: 0, y: 0, h: 1}], [{x: 1, y: 0, h: 1}] ]
+  //      block[1][0] => {x: 1, y: 0, h: 1}
+  //   2) [ [{x: 0, y: 0, h: 1}, {x: 0, y: 1, h: 1}] ]
+  //      block[0][1] => {x: 0, y: 1, h: 1}
+  //   3) [ [{x: 0, y: 0, h: 2}] ]
+  //      block[0][0] => {x: 0, y: 0, h: 2}
+  // Can only return a list of length 1 or 2.
+  function getBlockUnder() {
+    let x1InHalfUnit;
+    let x2InHalfUnit;
+    let y1InHalfUnit;
+    let y2InHalfUnit;
 
-  function getBox2OnXY() {
-    const { x, y } = getPosition();
-    const min = new Vector2();
-    const max = new Vector2();
+    const { x, y, z } = getHalfUnitPosition();
+    const h = 2 * z;
 
     const globalX = dice.globalToLocal('FORWARD');
     if (globalX === 'FORWARD' || globalX === 'BACKWARD') {
-      min.x = x - hfW;
-      max.x = x + hfW;
+      x1InHalfUnit = x - nx;
+      x2InHalfUnit = x + nx;
     } else if (globalX === 'LEFT' || globalX === 'RIGHT') {
-      min.x = x - hfL;
-      max.x = x + hfL;
+      x1InHalfUnit = x - ny;
+      x2InHalfUnit = x + ny;
     } else if (globalX === 'UP' || globalX === 'DOWN') {
-      min.x = x - hfH;
-      max.x = x + hfH;
+      x1InHalfUnit = x - nz;
+      x2InHalfUnit = x + nz;
     } else {
       throw new Error(`Invalid axis ${globalX}`);
     }
 
     const globalY = dice.globalToLocal('LEFT');
     if (globalY === 'FORWARD' || globalY === 'BACKWARD') {
-      min.y = y - hfW;
-      max.y = y + hfW;
+      y1InHalfUnit = y - nx;
+      y2InHalfUnit = y + nx;
     } else if (globalY === 'LEFT' || globalY === 'RIGHT') {
-      min.y = y - hfL;
-      max.y = y + hfL;
+      y1InHalfUnit = y - ny;
+      y2InHalfUnit = y + ny;
     } else if (globalY === 'UP' || globalY === 'DOWN') {
-      min.y = y - hfH;
-      max.y = y + hfH;
+      y1InHalfUnit = y - nz;
+      y2InHalfUnit = y + nz;
     } else {
       throw new Error(`Invalid axis ${globalY}`);
     }
 
-    return new Box2(min, max);
+    const x1 = 0.5 * (x1InHalfUnit + 1);
+    const x2 = 0.5 * (x2InHalfUnit - 1);
+    const y1 = 0.5 * (y1InHalfUnit + 1);
+    const y2 = 0.5 * (y2InHalfUnit - 1);
+
+    const block = [];
+    for (let x = x1; x <= x2; ++x) {
+      const column = [];
+      for (let y = y1; y <= y2; ++y) {
+        const tile = { x, y, h };
+        column.push(tile);
+      }
+      block.push(column);
+    }
+    return block;
   }
 
   return {
-    getSteadyState,
-    getBox2OnXY,
-    getLocation,
+    steadyBodyState: {
+      position: body.position.clone(),
+      quaternion: body.quaternion.clone(),
+    },
+
+    blockUnder: getBlockUnder(),
+
     roll,
-    rolled,
   };
 }

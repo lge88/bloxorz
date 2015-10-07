@@ -1,7 +1,12 @@
 import { Body, Quaternion, Vec3 } from 'cannon';
 
 // pivot, axis are in world frame.
-export function rotateBody({ position, quaternion }, pivot, axis, angle) {
+export function rotateBody(
+  { position, quaternion },
+  pivot,
+  axis,
+  angle
+) {
   const rotation = new Quaternion();
   rotation.setFromAxisAngle(axis, angle);
 
@@ -19,17 +24,22 @@ export function rotateBody({ position, quaternion }, pivot, axis, angle) {
 
 // pivot, axis are in world frame.
 // rate is in rad/second
-export function rotateBodyWithRate(
+export function rotateBodyWithSpeed(
   { position, quaternion },
   pivot,
   axis,
   angle,
   rate
 ) {
-  const angularVelocity = (new Vec3()).copy(axis).scale(rate);
-  const { position: newPosition, quaternion: newQuaternion } = rotateBody({ position, quaternion }, pivot, axis, angle);
+  const {
+    position: newPosition,
+    quaternion: newQuaternion
+  } = rotateBody({ position, quaternion }, pivot, axis, angle);
+
   const r = newPosition.vsub(pivot);
+  const angularVelocity = (new Vec3()).copy(axis).scale(rate);
   const velocity = angularVelocity.cross(r);
+
   return {
     position: newPosition,
     quaternion: newQuaternion,
