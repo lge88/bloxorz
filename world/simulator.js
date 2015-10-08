@@ -1,5 +1,7 @@
 import now from 'performance-now';
+
 import { createEmitter } from '../lib/emitter';
+import loop from '../lib/loop';
 
 const SIMULATION_STATUS = {
   RUNNING: 'RUNNING',
@@ -41,6 +43,8 @@ export function createSimulator() {
   let animationId = null;
 
   function run() {
+    let handle;
+
     function update() {
       // Update simulations that is RUNNING.
       simulations.forEach((simulation) => {
@@ -94,13 +98,12 @@ export function createSimulator() {
                  status === SIMULATION_STATUS.ABORTED);
       });
 
-      if (simulations.length > 0) {
-        animationId = requestAnimationFrame(update);
-      } else {
-        animationId = null;
+      if (simulations.length <= 0) {
+        handle.remove();
       }
     }
-    update();
+
+    handle = loop.add(update);
   }
 
   function mergeState(state, output) {
