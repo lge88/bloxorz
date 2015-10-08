@@ -82,6 +82,7 @@ export function createSimulator() {
 
       // Publish changes:
       simulations.forEach((simulation) => {
+        // console.log('s status', simulation.status);
         if (simulation.status === SIMULATION_STATUS.DONE) {
           simulation.onEnd();
         } else if (simulation.status === SIMULATION_STATUS.ABORTED) {
@@ -265,18 +266,23 @@ export function createSimulator() {
     return handle;
   }
 
-  function setState(partial) {
+  function _setState(partial) {
     Object.keys(partial).forEach((key) => {
       state[key] = partial[key];
     });
   }
 
+  function _emitChange() {
+    emitter.emitChange();
+  }
+
   return {
     getState,
-    setState,
     createSimulation,
     addChangeListener,
     removeChangeListener,
     clearChangeListeners,
+    _setState,
+    _emitChange,
   };
 }

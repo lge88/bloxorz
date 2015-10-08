@@ -1,7 +1,8 @@
 import loop from '../lib/loop';
 import stages from '../stages';
 import { createEmitter } from '../lib/emitter';
-import { createWorld as createWorld_ } from '../world';
+/* import { createWorld as createWorld_ } from '../world'; */
+import { createWorld as createWorld_ } from '../world/index2';
 
 let state = {
   gridSize: 0.1,
@@ -66,8 +67,8 @@ function createWorld(state) {
 
   world = createWorld_({
     goal,
-    gridSize,
-    tiles: tiles,
+    unitLength: gridSize,
+    tiles,
     boxOptions: {
       nx: dimension.x,
       ny: dimension.y,
@@ -79,9 +80,7 @@ function createWorld(state) {
     },
   });
 
-  function updateWorld() {
-    world.update();
-
+  const updateWorldState = () => {
     const worldState = world.getState();
 
     dispatch({
@@ -91,22 +90,50 @@ function createWorld(state) {
 
     const currentStage = state.world.stage.name;
     if (worldState.state === 'WON') {
-      handle.remove();
-      dispatch({ type: 'PAUSE' });
+      world.removeChangeListener(updateWorldState);
+      // dispatch({ type: 'PAUSE' });
       alert('You win!');
       const nextStage = stages.getNextStage(currentStage);
       dispatch({ type: 'LOAD_STAGE', name: nextStage });
     } else if (worldState.state === 'LOST') {
-      handle.remove();
-      dispatch({ type: 'PAUSE' });
+      world.removeChangeListener(updateWorldState);
+      // dispatch({ type: 'PAUSE' });
       alert('You lost!');
       dispatch({ type: 'LOAD_STAGE', name: currentStage });
     }
-  }
+  };
 
-  handle = loop.add(updateWorld);
+  world.addChangeListener(updateWorldState);
+  world.start();
 
-  return [ world, handle ];
+  // function updateWorld() {
+  //   world.update();
+
+  //   const worldState = world.getState();
+
+  //   dispatch({
+  //     type: 'UPDATE_WORLD_STATE',
+  //     state: worldState,
+  //   });
+
+  //   const currentStage = state.world.stage.name;
+  //   if (worldState.state === 'WON') {
+  //     handle.remove();
+  //     dispatch({ type: 'PAUSE' });
+  //     alert('You win!');
+  //     const nextStage = stages.getNextStage(currentStage);
+  //     dispatch({ type: 'LOAD_STAGE', name: nextStage });
+  //   } else if (worldState.state === 'LOST') {
+  //     handle.remove();
+  //     dispatch({ type: 'PAUSE' });
+  //     alert('You lost!');
+  //     dispatch({ type: 'LOAD_STAGE', name: currentStage });
+  //   }
+  // }
+
+  // handle = loop.add(updateWorld);
+
+  // return [ world, handle ];
 }
 
 function loadStage(name) {
@@ -119,18 +146,22 @@ function loadStage(name) {
     .then((stage) => {
       const { name, goal, tiles } = stage;
       // clear current stage;
-      if (handle) {
-        handle.remove();
-        handle = null;
-      }
+      // if (handle) {
+      //   handle.remove();
+      //   handle = null;
+      // }
+      // debugger;
 
       Object.assign(state.world.stage, { url, name });
       Object.assign(state.world, { goal, tiles });
       state.paused = false;
-      [ world, handle ] = createWorld(state);
+      createWorld(state);
+
+      // [ world, handle ] = createWorld(state);
     })
     .catch((err) => {
-      console.log(`${err}`);
+      throw err;
+      // console.log(`${err}`);
     });
 }
 
