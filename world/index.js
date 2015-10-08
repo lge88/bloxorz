@@ -242,6 +242,7 @@ export function createWorld({
   };
 
   const getState = () => {
+    Object.assign(bodies, floor.getBodies());
     return {
       state,
       bodies,

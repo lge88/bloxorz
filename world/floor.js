@@ -1,8 +1,10 @@
 import { Body, Box, Vec3, Quaternion, Material } from 'cannon';
 import { rotateBody } from './rotate';
 const { round, random, PI } = Math;
-import loop from '../lib/loop';
-import now from 'performance-now';
+
+import { createSimulator } from './simulator';
+
+const simulator = createSimulator();
 
 function tileKeyAtLocation({ x, y }) {
   return `tile_${x}_${y}`;
@@ -58,32 +60,94 @@ export function createFloor({
       };
 
       const { position, quaternion } = getBodyStateAtRotationAngle(angle);
+      const _key = tileKeyAtLocation({ x: tile.x, y: tile.y });
+
+      const partialState = {};
+      partialState[_key] = { position, quaternion };
+
+      simulator.setState(partialState);
 
       const easing = (t) => t;
 
-      const toggle = () => {
-        const currentAngle = tile.enabled ? 0 : PI;
-        const targetAngle = PI - currentAngle;
-        const diff = targetAngle - currentAngle;
-        tile.enabled = !(tile.enabled);
+      const createAnimation = ({ enabled }) => {
+        return {
+          getStartState() {
+            const currentAngle = enabled ? 0 : PI;
+            const targetAngle = PI - currentAngle;
+            const diff = targetAngle - currentAngle;
+            const duration = 200;
+            const key = tileKeyAtLocation({ x: tile.x, y: tile.y });
+            const bodyState = getBodyStateAtRotationAngle(currentAngle);
 
-        const startedTime = now();
-        const duration = 200;
-        const h = loop.add(() => {
-          const currentTime = now();
-          const t = (currentTime - startedTime) / duration;
-          if (t < 1) {
-            angle = currentAngle + diff * easing(t);
-            Object.assign(state, getBodyStateAtRotationAngle(angle));
-          } else {
-            angle = targetAngle;
-            Object.assign(state, getBodyStateAtRotationAngle(angle));
-            h.remove();
-          }
-        });
+            return {
+              diff,
+              duration,
+              currentAngle,
+              targetAngle,
+              key,
+
+              output: [
+                { key, value: bodyState },
+              ],
+            };
+          },
+
+          getUpdatedState(state, commands) {
+            const { duration, currentTime, startedTime } = state;
+            const { currentAngle, diff } = state;
+            const { end } = commands;
+            const { key } = state;
+
+            const t = (currentTime - startedTime) / duration;
+
+            if (t >= 1) {
+              end();
+              return null;
+            }
+
+            const angle = currentAngle + diff * easing(t);
+            const bodyState = getBodyStateAtRotationAngle(angle);
+
+            return {
+              output: [
+                { key, value: bodyState },
+              ],
+            };
+          },
+
+          getEndState(state) {
+            const { key, targetAngle } = state;
+            const bodyState = getBodyStateAtRotationAngle(targetAngle);
+
+            return {
+              output: [
+                { key, value: bodyState },
+              ],
+            };
+          },
+
+          getAbortedState(state) {
+            const { key, targetAngle } = state;
+            const bodyState = getBodyStateAtRotationAngle(targetAngle);
+
+            return {
+              output: [
+                { key, value: bodyState },
+              ],
+            };
+          },
+        };
       };
 
-      const _key = tileKeyAtLocation({ x: tile.x, y: tile.y });
+      const toggle = () => {
+        const animation = createAnimation({ enabled: tile.enabled });
+        const simulation = simulator.createSimulation(animation);
+
+        tile.enabled = !(tile.enabled);
+
+        simulation.start();
+      };
+
       const state = { _key, toggle, position, quaternion };
       return state;
     }
@@ -301,13 +365,16 @@ export function createFloor({
   }
 
   function getBodies() {
-    return tiles
-      .filter((tile) => tile.type === 'Gate')
-      .map((tile) => getGateSteadyBodyState(tile))
-      .reduce((dict, body) => {
-        dict[body._key] = body;
-        return dict;
-      }, {});
+    const bodies = simulator.getState();
+    return bodies;
+
+    // return tiles
+    //   .filter((tile) => tile.type === 'Gate')
+    //   .map((tile) => getGateSteadyBodyState(tile))
+    //   .reduce((dict, body) => {
+    //     dict[body._key] = body;
+    //     return dict;
+    //   }, {});
   }
 
   return {
