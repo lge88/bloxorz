@@ -194,7 +194,7 @@ export function createBox({
     let y2InHalfUnit;
 
     const { x, y, z } = getHalfUnitPosition();
-    const h = 2 * z;
+    const h = z;
 
     const globalX = dice.globalToLocal('FORWARD');
     if (globalX === 'FORWARD' || globalX === 'BACKWARD') {
@@ -242,6 +242,7 @@ export function createBox({
   }
 
   return {
+    // TODO: move this out of box, so that box can go without unitLength.
     steadyBodyState: {
       position: body.position.clone(),
       quaternion: body.quaternion.clone(),

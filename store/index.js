@@ -99,6 +99,9 @@ function createWorld(state) {
       world.removeChangeListener(updateWorldState);
       // dispatch({ type: 'PAUSE' });
       alert('You lost!');
+      // world.reset();
+      // world.start();
+      // world.addChangeListener(updateWorldState);
       dispatch({ type: 'LOAD_STAGE', name: currentStage });
     }
   };

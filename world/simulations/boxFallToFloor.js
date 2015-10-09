@@ -1,6 +1,7 @@
 import { createWorld, createBox, createGround } from './lib/cannon';
 const { abs } = Math;
 
+// FIXME: sometime the box would not stand after fall:(
 export default function createSimulation({
   dimension,
   initialHeight,
@@ -8,10 +9,13 @@ export default function createSimulation({
   onEnd,
 }) {
   function createContext() {
-    const world = createWorld({});
+    const world = createWorld({
+      gravity: { x: 0, y: 0, z: -20 },
+    });
     const box = createBox({
       dimension,
       position: { x: 0, y: 0, z: initialHeight },
+      material: { friction: 1.0, restitution: 0.0 },
     });
     const ground = createGround({});
     world.addBody(box);
@@ -61,7 +65,8 @@ export default function createSimulation({
       const { position, quaternion } = box;
       const bodyState = { position, quaternion };
 
-      if (isDone(box, dimension)) {
+      if (isDone(box, dimension) ||
+          currentTime - state.startedTime > 2000) {
         return end();
       }
 

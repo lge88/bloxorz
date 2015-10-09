@@ -23,6 +23,7 @@ const Game = React.createClass({
     window.addEventListener('keydown', this._onKeyDown, false);
     store.addChangeListener(this._onStoreChange);
 
+    /* this._loadStage('Stage 01'); */
     this._loadStage('Debug');
   },
 

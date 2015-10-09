@@ -1,29 +1,31 @@
 import { createEmitter } from '../lib/emitter';
 import { createSimulator } from './simulator';
 import { createBox } from './box';
-import { createFloor } from './floor_';
+import { EVENT_TYPES, createFloor } from './floor_';
 
 import boxFallToFloor from './simulations/boxFallToFloor';
+import boxRoll from './simulations/boxRoll';
+import boxFallInHole from './simulations/boxFallInHole';
+import boxFallOffEdge from './simulations/boxFallOffEdge';
+import boxFallWithFragileTiles from './simulations/boxFallWithFragileTiles';
 
 export const STATE = {
   INIT: 'INIT',
   FALLING_TO_FLOOR: 'FALLING_TO_FLOOR',
   STEADY: 'STEADY',
   ROLLING: 'ROLLING',
-  ROLLED: 'ROLLED',
   FALLING_IN_HOLE: 'FALLING_IN_HOLE',
   FALLING_OFF_EDGE: 'FALLING_OFF_EDGE',
-  FALLING_WITH_FRAGILE_TILE: 'FALLING_WITH_FRAGILE_TILE',
+  FALLING_WITH_FRAGILE_TILES: 'FALLING_WITH_FRAGILE_TILES',
   WON: 'WON',
   LOST: 'LOST',
 };
 
-export const CONTROL_STATE = {
-  NOOP: 'NOOP',
-  LEFT: 'LEFT',
-  RIGHT: 'RIGHT',
-  FORWARD: 'FORWARD',
-  BACKWARD: 'BACKWARD',
+export const ROLL_DIRECTIONS = {
+  LEFT: 1,
+  RIGHT: 1,
+  FORWARD: 1,
+  BACKWARD: 1,
 };
 
 export function createWorld({
@@ -39,7 +41,6 @@ export function createWorld({
   let box = null;
   let floor = null;
   let state = null;
-  let controlState = null;
 
   function reset() {
     // TODO: Check and undestruture params.
@@ -72,7 +73,6 @@ export function createWorld({
     });
 
     state = STATE.INIT;
-    controlState = CONTROL_STATE.NOOP;
   }
 
   function start() {
@@ -111,17 +111,121 @@ export function createWorld({
 
   function getState() {
     const bodies = simulator.getState();
-    /* console.log('bodies', bodies); */
-    console.log('state', state);
-
+    console.log(state);
     return {
       state,
-      controlState,
       bodies,
     };
   }
 
-  function roll() {
+  function roll(direction) {
+    if (state === STATE.STEADY && ROLL_DIRECTIONS[direction] === 1) {
+      const { axis, pivot, nextBox } = box.roll(direction);
+      const { position, quaternion } = box.steadyBodyState;
+
+      const onEnd = onRollEnd.bind(null, nextBox);
+      const simulation = boxRoll({
+        position,
+        quaternion,
+        axis,
+        pivot,
+        onEnd,
+      });
+
+      const handle = simulator.createSimulation(simulation);
+
+      state = STATE.ROLLING;
+      handle.start();
+    }
+  }
+
+  function onRollEnd(nextBox) {
+    box = nextBox;
+
+    const eventData = floor.check(nextBox.blockUnder);
+    const { type } = eventData;
+    console.log(eventData.type);
+
+    if (type === EVENT_TYPES.FALL_IN_HOLE) {
+      fallInHole();
+    } else if (type === EVENT_TYPES.FALL_OFF_EDGE) {
+      const tilesUnderBox = eventData.solidTilesWithinBlock;
+      fallOffEdge(tilesUnderBox);
+    } else if (type === EVENT_TYPES.BREAK_FRAGILE_TILES) {
+      const fragileTiles = eventData.fragileTiles;
+      fallWithFragileTiles(fragileTiles);
+    } else if (type === EVENT_TYPES.TRIGGER_SWITCHES) {
+
+      state = STATE.STEADY;
+    } else {
+      console.assert(type === EVENT_TYPES.NOTHING);
+      state = STATE.STEADY;
+    }
+
+    emitter.emitChange();
+  }
+
+  function fallInHole() {
+    const { position, quaternion } = box.steadyBodyState;
+    const onEnd = win;
+
+    const simulation = boxFallInHole({
+      position,
+      quaternion,
+      onEnd,
+    });
+
+    const handle = simulator.createSimulation(simulation);
+
+    state = STATE.FALLING_IN_HOLE;
+    handle.start();
+  }
+
+  function fallOffEdge(tilesUnderBox) {
+    const { nx, ny, nz } = boxOptions;
+    const dimension = { x: nx * unitLength, y: ny * unitLength, z: nz * unitLength };
+    const { position, quaternion } = box.steadyBodyState;
+    const onEnd = lose;
+
+    const simulation = boxFallOffEdge({
+      dimension,
+      position,
+      quaternion,
+      tilesUnderBox,
+      onEnd,
+    });
+
+    const handle = simulator.createSimulation(simulation);
+
+    state = STATE.FALLING_OFF_EDGE;
+    handle.start();
+  }
+
+  function fallWithFragileTiles(fragileTiles) {
+    const { position, quaternion } = box.steadyBodyState;
+    const onEnd = lose;
+
+    const simulation = boxFallWithFragileTiles({
+      position,
+      quaternion,
+      fragileTiles,
+      onEnd,
+    });
+
+    const handle = simulator.createSimulation(simulation);
+
+    state = STATE.FALLING_WITH_FRAGILE_TILES;
+    handle.start();
+  }
+
+  function win() {
+    state = STATE.WON;
+    emitter.emitChange();
+  }
+
+  function lose() {
+    state = STATE.LOST;
+    emitter.emitChange();
   }
 
   reset();

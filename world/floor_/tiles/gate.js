@@ -1,33 +1,34 @@
+import { createNormalTile } from './normal';
+
 export function createGateTile({
-  x, y, type,
+  x, y, type, dimension,
   axis,
   enabled,
   singleUse,
 }) {
-  const _axis;
-  const pivot;
+  const tile = createNormalTile({ x, y, type, dimension });
 
-  function getState() {
-    return {
-      x,
-      y,
-      type,
-      enabled,
-      singleUse,
-    };
-  }
+  // TODO: figure out _axis, pivot vector3 from axis enum:
+  // {Left,Right,Forward,Backward}
+  let _axis;
+  let pivot;
 
-  // Return a simulation object.
+
+
+  // TODO: returns a new tile instead?
   function toggle() {
-    enabled = !(enabled);
+    tile.enabled = !(tile.enabled);
   }
 
-  return {
-    x, y, type,
-    axis,
-    enabled,
+  Object.assign(tile, {
+    axis: _axis,
+    pivot: pivot,
     singleUse,
+    enabled,
 
+    // commands:
     toggle,
-  };
+  });
+
+  return tile;
 }

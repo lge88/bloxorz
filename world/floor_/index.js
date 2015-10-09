@@ -1,170 +1,55 @@
-import { Body, Box, Vec3, Quaternion, Material } from 'cannon';
-/* import { rotateBody } from './rotate'; */
-import { rotateBody } from '../simulations/lib/rotate';
-const { round, random, PI } = Math;
-
-/* import { createSimulator } from './simulator'; */
-
-/* const simulator = createSimulator(); */
-const simulator = { setState: () => {} };
-
-function tileKeyAtLocation({ x, y }) {
-  return `tile_${x}_${y}`;
-}
+import { tileKeyAtLocation, createNormalTile } from './tiles/normal';
+import { createFragileTile } from './tiles/fragile';
+import { createGateTile } from './tiles/gate';
+import { createRoundSwitchTile, createCrossSwitchTile } from './tiles/switch';
 
 const THICKNESS_RATIO = 0.15;
 
+export const EVENT_TYPES = {
+  NOTHING: 'NOTHING',
+  FALL_IN_HOLE: 'FALL_IN_HOLE',
+  FALL_OFF_EDGE: 'FALL_OFF_EDGE',
+  BREAK_FRAGILE_TILES: 'BREAK_FRAGILE_TILES',
+  TRIGGER_SWITCHES: 'TRIGGER_SWITCHES',
+};
+
+// TODO: No need for unitLength?
 export function createFloor({
   goal,
   unitLength,
   tiles,
 }) {
   const thickness = THICKNESS_RATIO * unitLength;
+  const tileDimension = { x: unitLength, y: unitLength, z: thickness };
+
   const tileLUT = createTilesLUT(tiles);
 
   function createTilesLUT(tiles) {
-    return tiles.reduce((lut, tile) => {
-      const key = tileKeyAtLocation({ x: tile.x, y: tile.y });
-      lut[key] = tile;
-      tile._state = getInitialTileState(tile);
-      return lut;
-    }, {});
-  }
+    return tiles.reduce((lut, aTile) => {
+      Object.assign(aTile, {
+        dimension: tileDimension,
+      });
 
-  function getInitialTileState(tile) {
-    if (tile.type === 'Gate') {
-      const hfT = 0.5 * thickness;
-      const hfW = 0.5 * unitLength;
-      const xy = xyToWorldFrame({ x: tile.x, y: tile.y });
-
-      const body = new Body();
-      body.position.set(xy.x, xy.y, -hfT);
-      body.quaternion.set(0, 0, 0, 1);
-
-      let pivot;
-      let axis;
-
-      if (tile.axis === 'Forward') {
-        pivot = body.pointToWorldFrame(new Vec3(hfW, 0, -hfT));
-        axis = new Vec3(0, -1, 0);
-      } else if (tile.axis === 'Backward') {
-        pivot = body.pointToWorldFrame(new Vec3(-hfW, 0, -hfT));
-        axis = new Vec3(0, 1, 0);
-      } else if (tile.axis === 'Left') {
-        pivot = body.pointToWorldFrame(new Vec3(0, hfW, -hfT));
-        axis = new Vec3(1, 0, 0);
-      } else if (tile.axis === 'Right') {
-        pivot = body.pointToWorldFrame(new Vec3(0, -hfW, -hfT));
-        axis = new Vec3(-1, 0, 0);
+      let tile;
+      const type = aTile.type;
+      if (type === 'Normal') {
+        tile = createNormalTile(aTile);
+      } else if (type === 'Fragile') {
+        tile = createFragileTile(aTile);
+      } else if (type === 'RoundSwitch') {
+        tile = createRoundSwitchTile(aTile);
+      } else if (type === 'CrossSwitch') {
+        tile = createCrossSwitchTile(aTile);
+      } else if (type === 'Gate') {
+        tile = createGateTile(aTile);
+      } else {
+        console.warn(`Unknow tile type ${type}.`);
+        tile = createNormalTile(aTile);
       }
 
-      let angle = tile.enabled ? 0 : PI;
-      const getBodyStateAtRotationAngle = (angle) => {
-        return rotateBody(body, pivot, axis, angle);
-      };
-
-      const { position, quaternion } = getBodyStateAtRotationAngle(angle);
-      const _key = tileKeyAtLocation({ x: tile.x, y: tile.y });
-
-      const partialState = {};
-      partialState[_key] = { position, quaternion };
-
-      simulator.setState(partialState);
-
-      const easing = (t) => t;
-
-      const createAnimation = ({ enabled }) => {
-        return {
-          getStartState() {
-            const currentAngle = enabled ? 0 : PI;
-            const targetAngle = PI - currentAngle;
-            const diff = targetAngle - currentAngle;
-            const duration = 200;
-            const key = tileKeyAtLocation({ x: tile.x, y: tile.y });
-            const bodyState = getBodyStateAtRotationAngle(currentAngle);
-
-            return {
-              diff,
-              duration,
-              currentAngle,
-              targetAngle,
-              key,
-
-              output: [
-                { key, value: bodyState },
-              ],
-            };
-          },
-
-          getUpdatedState(state, commands) {
-            const { duration, currentTime, startedTime } = state;
-            const { currentAngle, diff } = state;
-            const { end } = commands;
-            const { key } = state;
-
-            const t = (currentTime - startedTime) / duration;
-
-            if (t >= 1) {
-              end();
-              return null;
-            }
-
-            const angle = currentAngle + diff * easing(t);
-            const bodyState = getBodyStateAtRotationAngle(angle);
-
-            return {
-              output: [
-                { key, value: bodyState },
-              ],
-            };
-          },
-
-          getEndState(state) {
-            const { key, targetAngle } = state;
-            const bodyState = getBodyStateAtRotationAngle(targetAngle);
-
-            return {
-              output: [
-                { key, value: bodyState },
-              ],
-            };
-          },
-
-          getAbortedState(state) {
-            const { key, targetAngle } = state;
-            const bodyState = getBodyStateAtRotationAngle(targetAngle);
-
-            return {
-              output: [
-                { key, value: bodyState },
-              ],
-            };
-          },
-        };
-      };
-
-      const toggle = () => {
-        const animation = createAnimation({ enabled: tile.enabled });
-        const simulation = simulator.createSimulation(animation);
-
-        tile.enabled = !(tile.enabled);
-
-        simulation.start();
-      };
-
-      const state = { _key, toggle, position, quaternion };
-      return state;
-    }
-
-    return null;
-  }
-
-  function xyToLocalFrame({ x, y }) {
-    return { x: round(x / unitLength), y: round(y / unitLength) };
-  }
-
-  function xyToWorldFrame({ x, y }) {
-    return { x: x * unitLength, y: y * unitLength };
+      lut[tile.key] = tile;
+      return lut;
+    }, {});
   }
 
   function getTileAtLocation({ x, y }) {
@@ -176,14 +61,18 @@ export function createFloor({
     return tile;
   }
 
-  // Return 2d array of local coords.
-  // [ [{x: 0, y: 0}], [{x: 1, y: 0}] ]
-  // block[1][0] => {x: 1, y: 0}
-  // Can only return a list of length 1 or 2.
-  function getBlockUnderBox(box) {
-    const block = box.blockUnder;
-    console.log('block', block);
-    return block;
+  function isSolid(xy) {
+    const tile = getTileAtLocation(xy);
+
+    if (tile === null) {
+      return false;
+    }
+
+    if (tile.type === 'Gate' && tile.enabled === false) {
+      return false;
+    }
+
+    return true;
   }
 
   function shouldFallInHole(block) {
@@ -191,10 +80,18 @@ export function createFloor({
       block[0][0].x === goal.x && block[0][0].y === goal.y;
   }
 
-  function isTileEmpty(xy) {
-    const tile = getTileAtLocation(xy);
-    return tile === null ||
-      (tile.type === 'Gate' && tile.enabled === false);
+  function checkFallInHole(block) {
+    const willHappen = shouldFallInHole(block);
+
+    if (willHappen) {
+      const eventData = {
+        type: EVENT_TYPES.FALL_IN_HOLE,
+        hole: { x: goal.x, y: goal.y },
+      };
+      return [ willHappen, eventData ];
+    }
+
+    return [ false, null ];
   }
 
   // Currently only works for 1x1xn (n=1,2) types of boxes.
@@ -205,7 +102,7 @@ export function createFloor({
     const locationMax = block[nx - 1][ny - 1];
 
     if (nx === 1 && ny === 1) {
-      return isTileEmpty({ x: locationMin.x, y: locationMin.y });
+      return !isSolid({ x: locationMin.x, y: locationMin.y });
     } else if (nx === 1 && ny === 2) {
       const [x, y1, y2, y0, y3] = [
         locationMin.x,
@@ -216,10 +113,10 @@ export function createFloor({
       ];
 
       const [ t0, t1, t2, t3 ] = [
-        isTileEmpty({ x, y: y0 }),
-        isTileEmpty({ x, y: y1 }),
-        isTileEmpty({ x, y: y2 }),
-        isTileEmpty({ x, y: y3 }),
+        !isSolid({ x, y: y0 }),
+        !isSolid({ x, y: y1 }),
+        !isSolid({ x, y: y2 }),
+        !isSolid({ x, y: y3 }),
       ];
 
       return (t1 && t2) || (t0 && t1) || (t2 && t3);
@@ -233,161 +130,164 @@ export function createFloor({
       ];
 
       const [ t0, t1, t2, t3 ] = [
-        isTileEmpty({ x: x0, y }),
-        isTileEmpty({ x: x1, y }),
-        isTileEmpty({ x: x2, y }),
-        isTileEmpty({ x: x3, y }),
+        !isSolid({ x: x0, y }),
+        !isSolid({ x: x1, y }),
+        !isSolid({ x: x2, y }),
+        !isSolid({ x: x3, y }),
       ];
       return (t1 && t2) || (t0 && t1) || (t2 && t3);
     }
 
-    throw new Error(`Cannot handle the case nx=${nx}, ny=${ny} :(`);
+    throw new Error(`Currently cannot handle the case nx=${nx}, ny=${ny} :(`);
   }
 
-  //
-  function maybeBreakFragileTiles(block) {
-    let happened = false;
-    const bodies = [];
-
+  function getSolidTilesWithinBlock(block) {
+    const tiles = [];
     block.forEach((row) => {
       row.forEach((xy) => {
+        if (!isSolid(xy)) { return; }
         const tile = getTileAtLocation(xy);
-        if (tile.type !== 'Fragile') { return; }
-
-        // check if the tile will be broken
-        // if it does, set dynamic bodies so that it could be
-        // simulated.
+        tiles.push(tile);
       });
     });
-
-    return { happened, bodies };
+    return tiles;
   }
 
-  function shouldBreakFragileTile(block) {
-    if (block.length !== 1 || block[0].length !== 1) { return false; }
+  function checkFallOffEdge(block) {
+    const willHappen = shouldFallOffEdge(block);
 
-    const tile = getTileAtLocation(block[0][0]);
-    return tile.type === 'Fragile';
+    if (willHappen) {
+      const eventData = {
+        type: EVENT_TYPES.FALL_OFF_EDGE,
+        solidTilesWithinBlock: getSolidTilesWithinBlock(block),
+      };
+      return [ willHappen, eventData ];
+    }
+
+    return [ false, null ];
   }
 
-  function toggleGate(tile) {
-    tile._state.toggle();
-  }
-
-  function maybeTriggerSwitch(block) {
-    let happened = false;
-
-    // TODO: maybe make this more generic?
-    const isTall = block.length === 1 && block[0].length === 1;
-
-    // TODO: how to handle the case when a block press two round switches
-    // at the same time? Should it toggle the gate twice?
+  function getBrokenTilesWithinBlock(block) {
+    const tiles = [];
     block.forEach((row) => {
-      row.forEach((xy) => {
-        const tile = getTileAtLocation(xy);
-        const shouldTrigger = (tile !== null) &&
-                ((tile.type === 'RoundSwitch') ||
-                 (tile.type === 'CrossSwitch' && isTall));
-        if (shouldTrigger) {
-          happened = true;
-          const gateTiles = tile.gates.map(getTileAtLocation);
-          gateTiles.forEach(toggleGate);
+      row.forEach((xyh) => {
+        const tile = getTileAtLocation(xyh);
+        if (tile !== null && tile.type === 'Fragile') {
+          const { h } = xyh;
+          if (tile.shouldBreak({ h })) {
+            tiles.push(tile);
+          }
         }
       });
     });
-
-    return { happened };
+    return tiles;
   }
 
-  function getPhysicalBricksUnderBox(block) {
-    // const block = getBlockUnderBox(box);
-    const bricks = [];
-    const hfT = 0.5 * thickness;
-    const hfW = 0.5 * unitLength;
-    const shrink = 0.9;
-    const material = new Material({
-      friction: 0,
-      restitution: 0,
-    });
+  function checkBreakFragileTiles(block) {
+    const fragileTiles = getBrokenTilesWithinBlock(block);
+    const willHappen = fragileTiles.length > 0;
 
+    if (willHappen) {
+      const eventData = {
+        type: EVENT_TYPES.BREAK_FRAGILE_TILES,
+        fragileTiles,
+      };
+      return [ willHappen, eventData ];
+    }
+
+    return [ false, null ];
+  }
+
+  function getSwitchesWillTriggerWithinBlock(block) {
+    const switches = [];
     block.forEach((row) => {
-      row.forEach((xy) => {
-        if (isTileEmpty(xy)) { return; }
+      row.forEach((xyh) => {
+        const tile = getTileAtLocation(xyh);
 
-        const pos = xyToWorldFrame({ x: xy.x, y: xy.y });
-        const brick = new Body({ mass: 0 });
-        brick.material = material;
-
-        // Shrink the brick a little bit to make it fall.
-        const shape = new Box(new Vec3(shrink * hfW, shrink * hfW, hfT));
-        brick.position.set(pos.x, pos.y, -hfT);
-        brick.addShape(shape);
-        brick._key = tileKeyAtLocation(xy);
-        bricks.push(brick);
+        if (tile !== null && /Switch/.test(tile.type)) {
+          const { h } = xyh;
+          if (tile.shouldTrigger({ h })) {
+            switches.push(tile);
+          }
+        }
       });
     });
-    return bricks;
+    return switches;
   }
 
-  function getPhysicalFragileBricksUnderBox(block) {
-    // debugger;
-    // const block = getBlockUnderBox(box);
-    const bricks = [];
-    const hfT = 0.5 * thickness;
-    const hfW = 0.5 * unitLength;
-    const material = new Material({
-      friction: 0,
-      restitution: 0,
+  function getGatesControlledBySwitches(switches) {
+    const gates = switches.reduce((sofar, tile) => {
+      if (tile !== null && /Switch/.test(tile.type)) {
+        tile.gates.forEach((gate) => {
+          const gateTile = getTileAtLocation({ x: gate.x, y: gate.y });
+          if (gateTile !== null && gateTile.type === 'Gate') {
+            sofar.push(gate);
+          }
+        });
+      }
+      return sofar;
+    }, []);
+
+    return gates;
+  }
+
+  function checkTriggerSwitch(block) {
+    const switches = getSwitchesWillTriggerWithinBlock(block);
+    const willHappen = switches.length > 0;
+
+    if (willHappen) {
+      const gates = getGatesControlledBySwitches(switches);
+      const eventData = {
+        type: EVENT_TYPES.TRIGGER_SWITCHES,
+        switches,
+        gates,
+      };
+      return [ willHappen, eventData ];
+    }
+
+    return [ false, null ];
+  }
+
+  // Returns a event object { type, ...data };
+  function check(block) {
+    let willHappen;
+    let eventData;
+
+    [ willHappen, eventData ] = checkFallInHole(block);
+    if (willHappen) { return eventData; }
+
+    [ willHappen, eventData ] = checkFallOffEdge(block);
+    if (willHappen) { return eventData; }
+
+    [ willHappen, eventData ] = checkBreakFragileTiles(block);
+    if (willHappen) { return eventData; }
+
+    [ willHappen, eventData ] = checkTriggerSwitch(block);
+    if (willHappen) { return eventData; }
+
+    return { type: EVENT_TYPES.NOTHING };
+  }
+
+  // TODO: returns a new floor instead?
+  function triggerSwitches(aSwitches) {
+    let switches = aSwitches.map(getTileAtLocation);
+    switches = switches.filter((tile) => {
+      return tile !== null && /Switch/.test(tile.type);
     });
 
-    block.forEach((row) => {
-      row.forEach((xy) => {
-        const tile = getTileAtLocation(xy);
-        if (tile.type !== 'Fragile') { return; }
+    // trigger switches:
+    switches.forEach((tile) => tile.trigger());
 
-        const pos = xyToWorldFrame({ x: xy.x, y: xy.y });
-        const shape = new Box(new Vec3(hfW, hfW, hfT));
-        let randomAngularVelocity = new Vec3(random(), random(), random());
-        randomAngularVelocity.normalize();
-        randomAngularVelocity = randomAngularVelocity.scale(10);
-
-        const brick = new Body({ mass: 5 });
-        brick._key = tileKeyAtLocation(xy);
-        brick.material = material;
-        brick.position.set(pos.x, pos.y, -hfT);
-        brick.angularVelocity.copy(randomAngularVelocity);
-        brick.addShape(shape);
-
-        bricks.push(brick);
-      });
-    });
-    return bricks;
-  }
-
-  function getGateSteadyBodyState(gate) {
-    return gate._state;
-  }
-
-  function getBodies() {
-    const bodies = simulator.getState();
-    return bodies;
-
-    // return tiles
-    //   .filter((tile) => tile.type === 'Gate')
-    //   .map((tile) => getGateSteadyBodyState(tile))
-    //   .reduce((dict, body) => {
-    //     dict[body._key] = body;
-    //     return dict;
-    //   }, {});
+    // toggle gates:
+    const gates = getGatesControlledBySwitches(switches);
+    gates.forEach((tile) => tile.toggle());
   }
 
   return {
-    shouldFallInHole,
-    shouldFallOffEdge,
-    shouldBreakFragileTile,
-    maybeTriggerSwitch,
-    getBodies,
-    getPhysicalBricksUnderBox,
-    getPhysicalFragileBricksUnderBox,
+    // queries:
+    check,
+
+    // commands:
+    triggerSwitches,
   };
 }
