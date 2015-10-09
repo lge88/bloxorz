@@ -1,7 +1,8 @@
 import stages from '../stages';
 import { createEmitter } from '../lib/emitter';
 /* import { createWorld as createWorld_ } from '../world'; */
-import { createWorld as createWorld_ } from '../world/index2';
+/* import { createWorld as createWorld_ } from '../world/index2'; */
+import { createWorld as createWorld_ } from '../world/index3';
 
 let state = {
   gridSize: 0.1,
@@ -43,7 +44,7 @@ let state = {
     tiles: [],
 
     // Updated every frame:
-    state: null,
+    status: null,
     bodies: {
       box: {
         position: {},
@@ -65,47 +66,50 @@ function createWorld(state) {
   const { dimension, initialHeight } = box;
 
   world = createWorld_({
-    goal,
-    unitLength: gridSize,
-    tiles,
-    boxOptions: {
-      nx: dimension.x,
-      ny: dimension.y,
-      nz: dimension.z,
-      position: { x: 0, y: 0, z: initialHeight },
-    },
-    floorOptions: {
-      thickness: floor.thickness,
-    },
+    getState,
+    dispatch,
+    /*
+       goal,
+       unitLength: gridSize,
+       tiles,
+       boxOptions: {
+       nx: dimension.x,
+       ny: dimension.y,
+       nz: dimension.z,
+       position: { x: 0, y: 0, z: initialHeight },
+       },
+       floorOptions: {
+       thickness: floor.thickness,
+       }, */
   });
 
-  const updateWorldState = () => {
-    const worldState = world.getState();
+  /* const updateWorldState = () => {
+     const worldState = world.getState();
 
-    dispatch({
-      type: 'UPDATE_WORLD_STATE',
-      state: worldState,
-    });
+     dispatch({
+     type: 'UPDATE_WORLD_STATE',
+     state: worldState,
+     });
 
-    const currentStage = state.world.stage.name;
-    if (worldState.state === 'WON') {
-      world.removeChangeListener(updateWorldState);
-      // dispatch({ type: 'PAUSE' });
-      alert('You win!');
-      const nextStage = stages.getNextStage(currentStage);
-      dispatch({ type: 'LOAD_STAGE', name: nextStage });
-    } else if (worldState.state === 'LOST') {
-      world.removeChangeListener(updateWorldState);
-      // dispatch({ type: 'PAUSE' });
-      alert('You lost!');
-      // world.reset();
-      // world.start();
-      // world.addChangeListener(updateWorldState);
-      dispatch({ type: 'LOAD_STAGE', name: currentStage });
-    }
-  };
+     const currentStage = state.world.stage.name;
+     if (worldState.state === 'WON') {
+     world.removeChangeListener(updateWorldState);
+     // dispatch({ type: 'PAUSE' });
+     alert('You win!');
+     const nextStage = stages.getNextStage(currentStage);
+     dispatch({ type: 'LOAD_STAGE', name: nextStage });
+     } else if (worldState.state === 'LOST') {
+     world.removeChangeListener(updateWorldState);
+     // dispatch({ type: 'PAUSE' });
+     alert('You lost!');
+     // world.reset();
+     // world.start();
+     // world.addChangeListener(updateWorldState);
+     dispatch({ type: 'LOAD_STAGE', name: currentStage });
+     }
+     };
 
-  world.addChangeListener(updateWorldState);
+     world.addChangeListener(updateWorldState); */
   world.start();
 
   // function updateWorld() {
@@ -224,7 +228,9 @@ export function dispatch(action) {
     break;
 
   case 'UPDATE_WORLD_STATE':
+    // debugger;
     Object.assign(state.world, action.state);
+    console.log('s', state.world.status, 'box.z', state.world.bodies.box.position.z);
     emitChange();
     break;
 
