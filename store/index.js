@@ -1,4 +1,3 @@
-import loop from '../lib/loop';
 import stages from '../stages';
 import { createEmitter } from '../lib/emitter';
 /* import { createWorld as createWorld_ } from '../world'; */

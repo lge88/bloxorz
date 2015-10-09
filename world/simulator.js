@@ -40,11 +40,9 @@ export function createSimulator() {
   //   commands,
   // }
   let simulations = [];
-  let animationId = null;
+  let loopHandle = null;
 
   function run() {
-    let handle;
-
     function update() {
       // Update simulations that is RUNNING.
       simulations.forEach((simulation) => {
@@ -100,11 +98,15 @@ export function createSimulator() {
       });
 
       if (simulations.length <= 0) {
-        handle.remove();
+        loopHandle.remove();
+        loopHandle = null;
       }
     }
 
-    handle = loop.add(update);
+    // Running, do nothing.
+    if (loopHandle !== null) { return; }
+
+    loopHandle = loop.add(update);
   }
 
   function mergeState(state, output) {
@@ -245,7 +247,8 @@ export function createSimulator() {
       mergeState(state, output);
 
       simulations.push(simulation);
-      if (animationId === null) {
+
+      if (loopHandle === null) {
         run();
       }
 
