@@ -79,7 +79,10 @@ const Camera = React.createClass({
   },
 
   render() {
-    const { name, gridSize, tiles } = this.props;
+    const { name, gridSize } = this.props;
+    let { tiles } = this.props;
+    tiles = Object.keys(tiles).map((key) => tiles[key]);
+
     const { viewPort, boxHeight } = this.props;
 
     let { direction, aabbScale } = this.props;

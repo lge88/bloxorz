@@ -241,6 +241,18 @@ export function createBox({
     return block;
   }
 
+  function getState() {
+    return {
+      offset,
+      orientation,
+      steadyBodyState: {
+        position: body.position.clone(),
+        quaternion: body.quaternion.clone(),
+      },
+      blockUnder: getBlockUnder(),
+    };
+  }
+
   return {
     // TODO: move this out of box, so that box can go without unitLength.
     steadyBodyState: {
@@ -249,6 +261,7 @@ export function createBox({
     },
     blockUnder: getBlockUnder(),
 
+    getState,
     roll,
   };
 }

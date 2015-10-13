@@ -7,6 +7,8 @@
     "performance-now": "^0.2.0",
     "react": "^0.13.3",
     "react-three": "lge88/react-three",
+    "redux": "^3.0.2",
+    "redux-thunk": "^1.0.0",
     "three": "^0.70.1",
     "whatwg-fetch": "^0.9.0"
   },

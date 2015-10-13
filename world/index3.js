@@ -1,5 +1,6 @@
 import { createEmitter } from '../lib/emitter';
 import { createTransition } from '../lib/transition';
+import createTransitionManager from '../lib/createTransitionManager';
 import { createBox } from './box';
 import { EVENT_TYPES, createFloor } from './floor_';
 
@@ -75,7 +76,7 @@ const boxFallToFloor = createTransition_({
 
     if (context.status === 'ENDED') {
       action.state.status = STATUS.STEADY;
-    } else {
+    } else if (context.status === 'JUST_STARTED') {
       action.state.status = STATUS.FALLING_TO_FLOOR;
     }
 
@@ -85,40 +86,79 @@ const boxFallToFloor = createTransition_({
   transition: boxFallToFloor_,
 });
 
+const boxRoll = createTransition_({
+  select: (getState) => {
+    const state = getState();
+    const { offset, orientation } = state.world.box;
+    const direction = state.world.box.rollingDirectin;
+
+    const { gridSize } = state;
+    const { dimension } = state.box;
+    const box = createBox({
+      unitLength: gridSize,
+      dimension,
+      offset,
+      orientation
+    });
+
+    const { axis, pivot, nextBox } = box.roll(direction);
+    const { position, quaternion } = box.steadyBodyState;
+    return {
+      position,
+      quaternion,
+      axis,
+      pivot,
+      angle: Math.PI / 2,
+      duration: 150,
+    };
+  },
+
+  gather: (boxBodyState, context) => {
+    const action = {
+      type: 'UPDATE_WORLD_STATE',
+      state: {
+        bodies: {
+          box: boxBodyState,
+        },
+      },
+    };
+
+    if (context.status === 'ENDED') {
+      action.state.status = STATUS.STEADY;
+    } else if (context.status === 'JUST_STARTED') {
+      action.state.status = STATUS.FALLING_TO_FLOOR;
+    }
+
+    return action;
+  },
+
+  transition: boxRoll_,
+});
+
 export function createWorld({
   getState,
   dispatch,
 }) {
-  let handles = null;
-
-  function bindTransition(transition) {
-    const handle = transition(getState, dispatch);
-    if (handles === null) { handles = []; }
-    handles.push(handle);
-    return handle;
-  }
-
-  function reset() {
-    if (Array.isArray(handles)) {
-      handles.forEach((handle) => handle.end());
-    }
-    handles = [];
-  }
+  const transitionManager = createTransitionManager();
 
   function start() {
-    const handle = bindTransition(boxFallToFloor);
-    handle.start();
+    const handle = boxFallToFloor(getState, dispatch);
+    transitionManager.add(handle);
   }
 
   function pause() {
-
+    transitionManager.pause();
+    dispatch({ type: 'PAUSE' });
   }
 
   function resume() {
-
+    transitionManager.resume();
+    dispatch({ type: 'RESUME' });
   }
 
-  function roll_(direction) {
+  function roll(direction) {
+    const state = getState();
+
     if (status === STATUS.STEADY && ROLL_DIRECTIONS[direction] === 1) {
       const { axis, pivot, nextBox } = box.roll(direction);
       const { position, quaternion } = box.steadyBodyState;
@@ -231,15 +271,8 @@ export function createWorld({
   reset();
 
   return {
-    getState,
-    addChangeListener: (cb) => emitter.addChangeListener(cb),
-    removeChangeListener: (cb) => emitter.removeChangeListener(cb),
-    clearChangeListeners: () => emitter.clearChangeListeners(),
-
     // commands:
-    // roll,
-
-    reset,
+    roll,
     start,
     pause,
     resume,

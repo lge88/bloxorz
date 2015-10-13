@@ -1,7 +1,6 @@
 import React from 'react';
 import * as store from '../store';
-import stages from '../stages';
-
+import loadStage from '../actions/loadStage';
 import GameScene from './GameScene';
 import GameGUI from './GameGUI';
 
@@ -21,7 +20,7 @@ const Game = React.createClass({
   componentDidMount() {
     window.addEventListener('resize', this._onWindowResize);
     window.addEventListener('keydown', this._onKeyDown, false);
-    store.addChangeListener(this._onStoreChange);
+    this._unsubscribe = store.subscribe(this._onStoreChange);
 
     /* this._loadStage('Stage 01'); */
     this._loadStage('Debug');
@@ -30,7 +29,7 @@ const Game = React.createClass({
   componentWillUnmount() {
     window.removeEventListener('resize', this._onWindowResize);
     window.removeEventListener('keydown', this._onKeyDown);
-    store.removeChangeListener(this._onStoreChange);
+    this._unsubscribe();
   },
 
   _onWindowResize() {
@@ -74,22 +73,23 @@ const Game = React.createClass({
   },
 
   _loadStage(stageName) {
-    store.dispatch({
-      type: 'RESUME',
-    });
+    store.dispatch(loadStage(stageName));
+    /* store.dispatch({
+       type: 'RESUME',
+       });
 
-    store.dispatch({
-      type: 'LOAD_STAGE',
-      name: stageName,
-    });
+       store.dispatch({
+       type: 'LOAD_STAGE',
+       name: stageName,
+       }); */
   },
 
   _getGameGUIProps() {
     return {
-      currentStage: this.state.world && this.state.world.stage,
+      currentStage: this.state.stage,
       paused: this.state.paused,
       togglePauseResume: this._togglePauseResume,
-      stages: stages.data,
+      stages: this.state.stages,
       loadStage: this._loadStage,
     };
   },

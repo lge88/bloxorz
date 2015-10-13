@@ -67,7 +67,7 @@ export default class GameScene extends Component {
   _getCameraProps() {
     const { gridSize, viewPort, world, box, camera } = this.props;
     const { aabbScale, direction } = camera;
-    const tiles = world.tiles || [];
+    const tiles = (world && world.bodies && world.bodies.tiles) || [];
     const boxHeight = box.dimension.z * gridSize;
     return {
       name: CAMERA_NAME,
@@ -107,20 +107,22 @@ export default class GameScene extends Component {
   _getFloorProps() {
     const { gridSize } = this.props;
     const { thickness } = this.props.floor;
-    const { tiles, bodies } = this.props.world;
-    const dynamicTiles = Object.keys(bodies)
-            .filter((key) => /tile_/.test(key))
-            .reduce((dict, key) => {
-              const body = bodies[key];
-              dict[key] = body;
-              return dict;
-            }, {});
+    /* const { tiles, bodies } = this.props.world; */
+    const { tiles } = this.props.world.bodies;
+    /* debugger; */
+    /* const tiles = Object.keys(bodies)
+       .filter((key) => /tile_/.test(key))
+       .reduce((dict, key) => {
+       const body = bodies[key];
+       dict[key] = body;
+       return dict;
+       }, {}); */
 
     return {
       width: gridSize,
       thickness,
       tiles,
-      dynamicTiles,
+      // dynamicTiles,
     };
   }
 

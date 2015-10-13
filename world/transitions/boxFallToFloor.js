@@ -35,7 +35,7 @@ export function getStartState({
   const box = createBox({
     dimension,
     position: { x: 0, y: 0, z: initialHeight },
-    material: { friction: 1.0, restitution: 0.0 },
+    material: { friction: 1.0, restitution: 0.4 },
   });
 
   const endBodyState = {
@@ -63,14 +63,11 @@ export function getStartState({
   };
 }
 
+const dt = 1 / 60;
 export function getRunningState(state, context) {
   if (isDone(state, context)) {
     return context.END;
   }
-
-  const { timestamps } = context;
-  const { currentTime, previousTime } = timestamps;
-  const dt = (currentTime - previousTime) / 1000;
 
   const { world, box } = state;
   world.step(dt);
@@ -85,6 +82,4 @@ export function getEndState({ endBodyState }) {
   return { bodyState: endBodyState };
 }
 
-export function getCancelState(state) {
-  return getEndState(state);
-}
+export const getCancelState = getEndState;
