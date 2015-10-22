@@ -1,59 +1,72 @@
-import { tileKeyAtLocation, createNormalTile } from './tiles/normal';
-import { createFragileTile } from './tiles/fragile';
-import { createGateTile } from './tiles/gate';
-import { createRoundSwitchTile, createCrossSwitchTile } from './tiles/switch';
+import { createTilesLUT } from './tiles';
+import { roll as roll_, initBoxState } from './box';
 
-function createTile(tile) {
-  const type = tile.type;
-  if (type === 'Normal') {
-    return createNormalTile(tile);
-  } else if (type === 'Fragile') {
-    return createFragileTile(tile);
-  } else if (type === 'RoundSwitch') {
-    return createRoundSwitchTile(tile);
-  } else if (type === 'CrossSwitch') {
-    return createCrossSwitchTile(tile);
-  } else if (type === 'Gate') {
-    return createGateTile(tile);
-  }
-
-  console.warn(`Unknow tile type ${type}.`);
-  return createNormalTile(tile);
-}
-
-function createTilesLUT(tiles) {
-  const tilesLUT = tiles
-          .map(createTile)
-          .reduce((lut, tile) => {
-            lut[tile.key] = tile;
-            return lut;
-          }, {});
-  return tilesLUT;
-}
-
-export function initGame({ goal, box, tiles } ) {
+export function initGame({ unitLength, goal, box, tiles } ) {
   const tilesLUT = createTilesLUT(tiles);
+  const { dimension } = box;
+  const offset = {
+    x: [ 0, 0, 0 ],
+    y: [ 0, 0, 0 ],
+  };
+  const orientation = {
+    x: 'FORWARD',
+    y: 'LEFT',
+  };
+
+  const box0 = initBoxState({ unitLength, dimension, offset, orientation });
 
   const gameState = {
     goal,
+    status: null,
     tiles: tilesLUT,
-    box: {
-      dimension: box.dimension,
-      offset: {
-        x: [ 0, 0, 0 ],
-        y: [ 0, 0, 0 ],
-      },
-      orientation: {
-        x: 'FORWARD',
-        y: 'LEFT',
-      },
-    }
+    activeBoxIndex: 0,
+    boxes: [
+      box0,
+    ],
   };
 
-  return gameState;
+  console.log('box0', box0);
+
+  return check(gameState);
 }
 
-// Returns { type, newState };
-export function check() {
+// Returns newGameState
+function getStatus(game) {
+  return { type: 'VALID' };
 
+  [ willHappen, data ] = checkFallInHole(block);
+  if (willHappen) { return data; }
+
+  [ willHappen, data ] = checkFallOffEdge(block);
+  if (willHappen) { return data; }
+
+  [ willHappen, data ] = checkBreakFragileTiles(block);
+  if (willHappen) { return data; }
+
+  [ willHappen, data ] = checkTriggerSwitch(block);
+  if (willHappen) { return data; }
+
+  return { type: 'VALID' };
+}
+
+function check(game) {
+  const newGame = Object.assign({}, game);
+  newGame.status = getStatus(game);
+  return newGame;
+}
+
+export function roll(state, action) {
+  const { direction } = action;
+
+  const game = state.game;
+  const box = game.boxes[game.activeBoxIndex];
+  const nextBox = roll_(box, direction);
+
+  const boxes = game.boxes.slice();
+  boxes[game.activeBoxIndex] = nextBox;
+
+  let newGame = Object.assign({}, game, { boxes });
+  newGame = check(newGame);
+
+  return Object.assign({}, state, { game: newGame });
 }

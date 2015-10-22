@@ -1,5 +1,5 @@
-import { randomVec3 } from './lib/cannon';
-import freeFall from './lib/freeFall';
+import { randomVec3 } from '../lib/cannon';
+import freeFall from '../lib/freeFall';
 
 const BOX_KEY = 'box';
 const DURATION = 500;

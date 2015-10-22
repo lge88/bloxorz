@@ -1,12 +1,14 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
 import reducer from '../reducers';
-import animations from '../middlewares/animations';
+import bodies from '../middlewares/bodies';
 
-const createStoreWithMiddleware = applyMiddleware(
+const middlewares = [
   thunk,
-  animations
-)(createStore);
+  bodies,
+];
+
+const createStoreWithMiddleware = applyMiddleware(...middlewares)(createStore);
 
 export default function configureStore(initialState) {
   const store = createStoreWithMiddleware(reducer, initialState);

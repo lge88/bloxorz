@@ -3,8 +3,9 @@ import { Scene } from 'react-three';
 import { Vector3, Quaternion } from 'three';
 import Lights from './scene/Lights';
 import Camera from './scene/Camera';
-import Box from './scene/Box';
-import Floor from './scene/Floor';
+/* import Box from './scene/Box';
+   import Floor from './scene/Floor'; */
+import Bodies from './scene/Bodies';
 
 const SCENE_BACKGROUND_COLOR = 0x999999;
 const CAMERA_NAME = 'main';
@@ -65,16 +66,14 @@ export default class GameScene extends Component {
   }
 
   _getCameraProps() {
-    const { gridSize, viewPort, world, box, camera } = this.props;
+    const { viewPort, world, camera } = this.props;
     const { aabbScale, direction } = camera;
-    const tiles = (world && world.bodies && world.bodies.tiles) || [];
-    const boxHeight = box.dimension.z * gridSize;
+    const bodies = (world && world.bodies) || {};
+
     return {
       name: CAMERA_NAME,
-      gridSize,
-      tiles,
+      bodies,
       viewPort,
-      boxHeight,
       aabbScale,
       direction,
     };
@@ -82,6 +81,12 @@ export default class GameScene extends Component {
 
   _getLightsProps() {
     return this.props.lights;
+  }
+
+  _getBodiesProps() {
+    const { world } = this.props;
+    const bodies = (world && world.bodies) || {};
+    return { bodies };
   }
 
   _getBoxProps() {
@@ -129,14 +134,14 @@ export default class GameScene extends Component {
   render() {
     const sceneProps = this._getSceneProps();
     const cameraProps = this._getCameraProps();
-    const boxProps = this._getBoxProps();
-    const floorProps = this._getFloorProps();
+    /* const boxProps = this._getBoxProps();
+       const floorProps = this._getFloorProps(); */
     const lightsProps = this._getLightsProps();
+    const bodiesProps = this._getBodiesProps();
 
     return (
       <Scene { ...sceneProps }>
-        <Box {...boxProps} />
-        <Floor {...floorProps} />
+        <Bodies {...bodiesProps} />
         <Camera {...cameraProps} />
         <Lights {...lightsProps} />
       </Scene>

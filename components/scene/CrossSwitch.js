@@ -6,9 +6,9 @@ import { Shape, ExtrudeGeometry } from 'three';
 import Brick from './Brick';
 const { PI, cos } = Math;
 
-const THICKNESS = 0.12;
-const LEG_LENGTH = 1.1;
-const LEG_THICKNESS = 0.35;
+const THICKNESS = 0.2;
+const LEG_LENGTH = 0.55;
+const LEG_THICKNESS = 0.20;
 const COLOR = 0x888888;
 
 const extrudeSettings = {
@@ -57,33 +57,24 @@ const shape = new Shape(points);
 const geometry = new ExtrudeGeometry(shape, extrudeSettings);
 const material = new MeshPhongMaterial({ color: COLOR });
 
-const RoundSwitch_ = React.createClass({
+const Switch = React.createClass({
   render() {
     return (
       <Mesh geometry={geometry}
             material={material}
-            { ...this.props}
+            { ...this.props }
       />
     );
   },
 });
 
-export default class RoundSwitch extends Component {
-  static propTypes = {
-    width: PropTypes.number.isRequired,
-    thickness: PropTypes.number.isRequired,
-  };
-
+export default class CrossSwitch extends Component {
   render() {
-    const { width, thickness } = this.props;
-    const [ hfW, hfH ] = [ 0.5 * width, 0.5 * thickness ];
-    const scale = new Vector3(hfW, hfW, hfW);
-    const position = new Vector3(0, 0, hfH);
+    const position = new Vector3(0, 0, 0.5);
     return (
       <Object3D {...this.props }>
-        <Brick { ...{ width, thickness } } />
-        <RoundSwitch_ scale={scale}
-                      position={position} />
+        <Brick />
+        <Switch position={position} />
       </Object3D>
     );
   }

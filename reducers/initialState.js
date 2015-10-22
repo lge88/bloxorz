@@ -1,5 +1,4 @@
 import stages from '../stages';
-/* import { createBox } from '../world/box'; */
 
 const initialState = {
   gridSize: 0.1,
@@ -10,8 +9,9 @@ const initialState = {
     initialHeight: 1.2,
   },
 
-  floor: {
-    thickness: 0.015,
+  tile: {
+    width: 0.98,
+    thickness: 0.20,
   },
 
   lights: {
@@ -73,14 +73,7 @@ const initialState = {
 
   // Physics simulation state:
   world: {
-    bodies: {
-      box: {
-        position: { x: 0, y: 0, z: 1.2 },
-        quaternion: { x: 0, y: 0, z: 0, w: 1 },
-      },
-      tiles: {
-      }
-    }
+    bodies: {}
   },
 
   // world: {

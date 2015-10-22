@@ -1,25 +1,21 @@
-import { createWorld, createBox, createGround } from './lib/cannon';
+import { createWorld, createBox, createGround } from '../lib/cannon';
 const { abs } = Math;
 
 const MAX_DURATION = 2000;
 const THRESHOLD = 0.01;
+const DT = 1 / 60;
 
 export default function createFrameFunc(dispatch, getState, end) {
   const state = getState();
-  const { dimension, initialHeight } = state.box;
-  const { gridSize } = state;
+  const oldBoxBody = state.world.bodies.box_0;
 
   const world = createWorld({
     gravity: { x: 0, y: 0, z: -20 },
   });
 
   const box = createBox({
-    dimension: {
-      x: dimension.x * gridSize,
-      y: dimension.y * gridSize,
-      z: dimension.z * gridSize,
-    },
-    position: { x: 0, y: 0, z: initialHeight },
+    dimension: oldBoxBody.scale,
+    position: oldBoxBody.position,
     material: { friction: 1.0, restitution: 0.4 },
   });
 
@@ -29,7 +25,7 @@ export default function createFrameFunc(dispatch, getState, end) {
   world.addBody(ground);
 
   const endBodyState = {
-    position: { x: 0, y: 0, z: 0.5 * dimension.z * gridSize },
+    position: { x: 0, y: 0, z: 0.5 * oldBoxBody.scale.z },
     quaternion: { x: 0, y: 0, z: 0, w: 1 },
   };
 
@@ -41,25 +37,22 @@ export default function createFrameFunc(dispatch, getState, end) {
       box.angularVelocity.length() < THRESHOLD;
   }
 
-  const dt = 1 / 60;
+  function emit({ position, quaternion }) {
+    dispatch({
+      type: 'UPDATE_BODIES',
+      bodies: {
+        box_0: { position, quaternion },
+      }
+    });
+  }
+
   return function(currentTime, startTime) {
     if (isSteady() || currentTime - startTime > MAX_DURATION) {
-      dispatch({
-        type: 'UPDATE_WORLD',
-        bodies: {
-          box: endBodyState,
-        }
-      });
+      emit(endBodyState);
       return end();
     }
 
-    world.step(dt);
-
-    dispatch({
-      type: 'UPDATE_WORLD',
-      bodies: {
-        box,
-      }
-    });
+    world.step(DT);
+    emit(box);
   };
 }

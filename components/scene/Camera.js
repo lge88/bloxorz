@@ -8,17 +8,19 @@ const UP = [ 0, 0, 1 ];
 const NEAR = -500;
 const FAR = 1000;
 
-function getSceneAABB(boxHeight, gridSize, tiles) {
-  const _min = { x: Infinity, y: Infinity, z: -boxHeight };
-  const _max = { x: -Infinity, y: -Infinity, z: boxHeight };
+// Not a generic AABB algorithm, spefic to the game scene.
+function getSceneAABB(bodies, boxHeight) {
+  const _min = { x: Infinity, y: Infinity, z: boxHeight };
+  const _max = { x: -Infinity, y: -Infinity, z: -boxHeight };
 
-  for (let i = 0; i < tiles.length; ++i) {
-    const tile = tiles[i];
-    _min.x = min((tile.x - 0.5) * gridSize, _min.x);
-    _max.x = max((tile.x + 0.5) * gridSize, _max.x);
-    _min.y = min((tile.y - 0.5) * gridSize, _min.y);
-    _max.y = max((tile.y + 0.5) * gridSize, _max.y);
-  }
+  Object.keys(bodies).forEach((key) => {
+    const body = bodies[key];
+    const { position, scale } = body;
+    _min.x = min((position.x - 0.5 * scale.x), _min.x);
+    _max.x = max((position.x + 0.5 * scale.x), _max.x);
+    _min.y = min((position.y - 0.5 * scale.y), _min.y);
+    _max.y = max((position.y + 0.5 * scale.y), _max.y);
+  });
 
   return new Box3(
     new Vector3(_min.x, _min.y, _min.z),
@@ -70,26 +72,21 @@ function getAABBCorners(aabb) {
 const Camera = React.createClass({
   propTypes: {
     name: PropTypes.string.isRequired,
-    gridSize: PropTypes.number.isRequired,
-    tiles: PropTypes.array.isRequired,
     viewPort: PropTypes.object.isRequired,
-    boxHeight: PropTypes.number.isRequired,
     aabbScale: PropTypes.object.isRequired,
     direction: PropTypes.object.isRequired,
+    bodies: PropTypes.object.isRequired,
   },
 
   render() {
-    const { name, gridSize } = this.props;
-    let { tiles } = this.props;
-    tiles = Object.keys(tiles).map((key) => tiles[key]);
-
-    const { viewPort, boxHeight } = this.props;
+    const { name, bodies, viewPort } = this.props;
+    const boxHeight = (bodies.box_0 && bodies.box_0.scale.z) || 0.0;
 
     let { direction, aabbScale } = this.props;
     direction = (new Vector3()).copy(direction);
     aabbScale = (new Vector3()).copy(aabbScale);
 
-    const aabb = getSceneAABB(boxHeight, gridSize, tiles);
+    const aabb = getSceneAABB(bodies, boxHeight);
     const center = aabb.center();
     const newSize = (new Vector3()).multiplyVectors(aabb.size(), aabbScale);
     aabb.setFromCenterAndSize(center, newSize);

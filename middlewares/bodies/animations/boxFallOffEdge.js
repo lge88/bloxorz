@@ -1,4 +1,4 @@
-import { createWorld, createBox } from './lib/cannon';
+import { createWorld, createBox } from '../lib/cannon';
 
 const DURATION = 500;
 const SHRINK = 0.9;

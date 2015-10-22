@@ -13,16 +13,9 @@ const material = new MeshPhongMaterial({
 const geometry = new BoxGeometry(1, 1, 1);
 
 export default class Brick extends Component {
-  static propTypes = {
-    width: PropTypes.number.isRequired,
-    thickness: PropTypes.number.isRequired,
-  };
-
   render() {
-    const { width, thickness } = this.props;
-    const scale = new Vector3(width, width, thickness);
     return (
-      <Mesh {...{ geometry, material, scale, ...this.props }} />
+      <Mesh {...{ geometry, material, ...this.props }} />
     );
   }
 }

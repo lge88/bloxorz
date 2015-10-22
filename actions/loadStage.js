@@ -23,7 +23,10 @@ export default function loadStage(name) {
         tiles,
       };
 
-      dispatch(action);
+      return dispatch(action);
+    })
+    .then(() => {
+      return dispatch({ type: 'READY' });
     })
     .catch((error) => {
       dispatch({

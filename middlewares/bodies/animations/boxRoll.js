@@ -1,4 +1,4 @@
-import rotateWithHinge from './lib/rotateWithHinge';
+import rotateWithHinge from '../lib/rotateWithHinge';
 const { PI } = Math;
 
 const BOX_KEY = 'box';

@@ -1,7 +1,7 @@
 import loop from '../../lib/loop';
 import now from 'performance-now';
 
-import boxFallToFloor from './boxFallToFloor';
+import boxFallToFloor from './animations/boxFallToFloor';
 // import boxFallOffEdge from './boxFallOffEdge';
 // import boxFallInHole from './boxFallInHole';
 // import boxRoll from './boxRoll';
@@ -30,33 +30,31 @@ function playAnimation(createFrameFunc, dispatch, getState) {
   return p;
 }
 
-const animations = store => next => action => {
+const bodies = store => next => action => {
   const { dispatch, getState } = store;
-  if (action.type === 'LOAD_STAGE_SUCCESS') {
-    next(action);
-    playAnimation(boxFallToFloor, dispatch, getState);
+  if (action.type === 'READY') {
+    return playAnimation(boxFallToFloor, dispatch, getState)
+      .then(() => next(action));
   } else if (action.type === 'ROLL') {
-    playAnimation(boxRoll(action.direction), dispatch, getState)
+    return playAnimation(boxRoll(action.direction), dispatch, getState)
+      .then(() => next(action))
       .then(() => {
         const status = getState().game.status;
         if (status === 'TRIGGER_SWITCHES') {
           return playAnimation(triggerSwitches, dispatch, getState);
-        }
-      })
-      .then(() => next(action))
-      .then(() => {
-        const status = getState().game.status;
-        if (status === 'FALL_OFF_EDGE') {
-          playAnimation(boxFallOffEdge, dispatch, getState);
+        } else if (status === 'FALL_OFF_EDGE') {
+          return playAnimation(boxFallOffEdge, dispatch, getState);
         } else if (status === 'FALL_IN_HOLE') {
-          playAnimation(boxFallInHole, dispatch, getState);
+          return playAnimation(boxFallInHole, dispatch, getState);
         } else if (status === 'BREAK_FRAGILE_TILES') {
-          playAnimation(boxFallWithFragileTiles, dispatch, getState);
+          return playAnimation(boxFallWithFragileTiles, dispatch, getState);
         }
+
+        return null;
       });
-  } else {
-    next(action);
   }
+
+  return next(action);
 };
 
-export default animations;
+export default bodies;

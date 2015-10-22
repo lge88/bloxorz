@@ -1,4 +1,4 @@
-import freeFall from './lib/freeFall';
+import freeFall from '../lib/freeFall';
 
 const DURATION = 500;
 
